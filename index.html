@@ -788,6 +788,13 @@
                 this.refreshContacts();
             },
 
+            esc(str) {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            },
+
             selectChat(id) {
                 this.activeChatId = id;
                 this.updateChatHeader();
@@ -812,7 +819,7 @@
                 if (!c) return;
 
                 const warning = this.checkHomograph(c.name) ? ' <span class="warning-badge" title="Внимание! Имя содержит похожие символы разных алфавитов (подделка)">⚠️</span>' : '';
-                document.getElementById('chatName').innerHTML = c.name + warning;
+                document.getElementById('chatName').innerHTML = this.esc(c.name) + warning;
 
                 document.getElementById('chatStatus').innerText = this.connections[this.activeChatId] ? 'В сети' : 'Не в сети';
                 const av = document.getElementById('chatAvatar');
@@ -891,7 +898,7 @@
                 const box = document.getElementById('messages');
                 const div = document.createElement('div');
                 div.className = `msg ${side}`;
-                div.innerHTML = `${text} <time>${time}</time>`;
+                div.innerHTML = `${this.esc(text)} <time>${time}</time>`;
                 box.appendChild(div);
                 box.scrollTop = box.scrollHeight;
             },
@@ -912,10 +919,10 @@
                     el.className = `contact ${active}`;
                     el.onclick = () => this.selectChat(id);
                     el.innerHTML = `
-                        <div class="avatar" style="background:${c.color}">${c.name.charAt(0).toUpperCase()}</div>
+                        <div class="avatar" style="background:${c.color}">${this.esc(c.name.charAt(0).toUpperCase())}</div>
                         <div class="contact-details">
-                            <div>${c.name}</div>
-                            <span>${c.last || 'Нет сообщений'}</span>
+                            <div>${this.esc(c.name)}</div>
+                            <span>${this.esc(c.last || 'Нет сообщений')}</span>
                         </div>
                         <div class="status-dot ${online}"></div>
                     `;
