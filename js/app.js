@@ -152,15 +152,28 @@ const app = {
     async testTg() {
         if (!this.tgChatId) return alert("Сначала привяжите аккаунт!");
 
-        const ok = await this.sendToTg(`🛡️ Связь с P2P Messenger установлена!\n\nВаш Ключ Безопасности:\n${this.mySecret}`);
+        const ok = await this.sendToTg(`🛡️ Связь с P2P Messenger установлена!\n\nВаш Ключ Безопасности:\n<tg-spoiler>${this.mySecret}</tg-spoiler>`, true);
         if (ok) this.showToast("Ключ отправлен в Telegram! ✈️");
         else alert("Ошибка отправки! Убедитесь, что вы не заблокировали бота.");
     },
 
-    async sendToTg(text) {
+    async sendToTg(text, useKeyboard = false) {
         if (!this.tgEnabled || !this.tgToken || !this.tgChatId) return false;
         try {
-            const url = `https://api.telegram.org/bot${this.tgToken}/sendMessage?chat_id=${this.tgChatId}&text=${encodeURIComponent(text)}`;
+            let url = `https://api.telegram.org/bot${this.tgToken}/sendMessage?chat_id=${this.tgChatId}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
+
+            if (useKeyboard) {
+                const markup = {
+                    keyboard: [
+                        [{ text: "📊 Статус" }, { text: "🚫 Выйти" }],
+                        [{ text: "❓ Помощь" }]
+                    ],
+                    resize_keyboard: true,
+                    one_time_keyboard: false
+                };
+                url += `&reply_markup=${encodeURIComponent(JSON.stringify(markup))}`;
+            }
+
             fetch(url, { mode: 'no-cors' });
             return true;
         } catch (e) { return false; }
@@ -424,14 +437,14 @@ const app = {
                     const msg = update.message;
                     if (msg && msg.chat.id.toString() === this.tgChatId) {
                         const cmd = msg.text ? msg.text.toLowerCase().trim() : '';
-                        if (cmd === '/logout' || cmd === '/kick') {
-                            this.sendToTg("🚫 Команда на выход получена. Сессия закрыта.");
+                        if (cmd === '/logout' || cmd === '/kick' || cmd === '🚫 выйти') {
+                            this.sendToTg("🚫 Команда на выход получена. Сессия закрыта.", true);
                             this.logout(true); // Forced logout
                             return;
-                        } else if (cmd === '/status') {
-                            this.sendToTg(`📊 Статус сессии:\n👤 Ник: ${this.myNick}\n🌐 IP: ${this.lastIp}\n📶 Сеть: PeerJS Active`);
-                        } else if (cmd === '/help' || cmd === '/start') {
-                            this.sendToTg(`🤖 Доступные команды:\n/status - проверить состояние\n/logout - завершить сессию\n/kick - то же самое что logout`);
+                        } else if (cmd === '/status' || cmd === '📊 статус') {
+                            this.sendToTg(`📊 <b>Статус сессии:</b>\n👤 Ник: <code>${this.myNick}</code>\n🌐 IP: <code>${this.lastIp}</code>\n📶 Сеть: PeerJS Active`, true);
+                        } else if (cmd === '/help' || cmd === '/start' || cmd === '❓ помощь') {
+                            this.sendToTg(`🤖 <b>Доступные команды:</b>\n/status - проверить состояние\n/logout - завершить сессию\n/kick - то же самое что logout`, true);
                         }
                     }
                 }

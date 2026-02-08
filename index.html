@@ -39,7 +39,7 @@
 
             <input type="text" id="setupName" class="big-input" placeholder="Никнейм" maxlength="20">
             <input type="password" id="setupPass" class="big-input" placeholder="Пароль">
-            <input type="text" id="setupSecretInput" class="big-input" placeholder="Ключ Безопасности"
+            <input type="password" id="setupSecretInput" class="big-input" placeholder="Ключ Безопасности"
                 style="display:none;">
 
             <div id="setup-secret-box"
@@ -74,7 +74,7 @@
         </div>
 
         <div style="max-width:300px; width:90%; display:none;" id="ipKeyInputStep">
-            <input type="text" id="ipSecretInput" class="big-input" placeholder="Ваш секретный ключ">
+            <input type="password" id="ipSecretInput" class="big-input" placeholder="Ваш секретный ключ">
             <button class="btn-main" onclick="app.verifySecret()">Подтвердить</button>
             <button class="btn-main" style="background:transparent; font-size:12px; margin-top:10px;"
                 onclick="app.show2faStep('choice')">← Назад</button>
