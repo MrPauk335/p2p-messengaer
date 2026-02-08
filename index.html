@@ -86,7 +86,14 @@
                 <button id="setupBtn" class="btn-main" style="flex:2" onclick="app.finishSetup()">Начать работу</button>
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
-            <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px;"></div>
+            <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px; text-align:center;"></div>
+
+            <div style="margin-top:25px; border-top:1px solid var(--border); padding-top:15px; text-align:center;">
+                <p style="font-size:11px; color:var(--text-dim); margin-bottom:5px;">Возникли проблемы?</p>
+                <button class="btn-main"
+                    style="background:transparent; color:var(--danger); border:1px solid var(--danger); height:30px; font-size:11px; width:auto; padding:0 15px;"
+                    onclick="app.clearData()">⚠️ Сбросить всё и начать заново</button>
+            </div>
 
             <div style="margin-top:30px; border-top:1px solid #333; padding-top:15px; width:100%; text-align:center;">
                 <p style="font-size:11px; color:var(--text-dim); cursor:pointer; text-decoration:underline;"

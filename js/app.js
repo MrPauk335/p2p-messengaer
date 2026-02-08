@@ -497,7 +497,8 @@ const app = {
             if (isTaken) {
                 document.getElementById('setupBtn').innerText = "Начать работу";
                 document.getElementById('setupBtn').disabled = false;
-                return document.getElementById('setupError').innerText = "Этот никнейм уже занят!";
+                document.getElementById('setupError').innerHTML = `Этот никнейм уже занят! <br> Если это ваш аккаунт, перейдите во вкладку <a href="#" onclick="app.setSetupMode('login')" style="color:var(--accent); text-decoration:underline;">Вход</a>.`;
+                return;
             }
             this.mySecret = this.tempSecret;
         } else {
@@ -593,6 +594,10 @@ const app = {
         this.peer.on('error', (err) => {
             if (err.type === 'unavailable-id') {
                 this.showToast('Ошибка: Этот никнейм уже используется на другом устройстве ⚠️');
+                const status = document.getElementById('chatStatus');
+                if (status) status.innerText = "Конфликт: ID уже в сети";
+                const myIdDisplay = document.getElementById('myIdDisplay');
+                if (myIdDisplay) myIdDisplay.innerText = "Ошибка: ID занят";
             }
         });
 
