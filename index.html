@@ -642,8 +642,10 @@
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.exportData()">Экспорт</button>
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
-            <button class="btn-main" style="background:var(--danger); margin-top:20px;"
-                onclick="app.clearData()">Удалить аккаунт</button>
+            <button class="btn-main" style="background:#252525; margin-top:10px; font-size:13px;"
+                onclick="app.logout()">Выйти из аккаунта</button>
+            <button class="btn-main" style="background:var(--danger); margin-top:10px; font-size:13px;"
+                onclick="app.clearData()">Удалить всё (с историей)</button>
         </div>
     </div>
 
@@ -1360,6 +1362,17 @@
             clearData() {
                 if (confirm('Это полностью удалит ваш ID и историю чатов. Продолжить?')) {
                     localStorage.clear();
+                    location.reload();
+                }
+            },
+
+            logout() {
+                if (confirm("Выйти из аккаунта? История и контакты сохранятся.")) {
+                    localStorage.removeItem('p2p_nick');
+                    localStorage.removeItem('p2p_uid');
+                    localStorage.removeItem('p2p_pass');
+                    localStorage.removeItem('p2p_secret');
+                    localStorage.removeItem('p2p_last_ip');
                     location.reload();
                 }
             }
