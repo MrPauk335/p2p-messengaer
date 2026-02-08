@@ -503,18 +503,39 @@ input.big-input {
 /* MOBILE */
 @media (max-width: 768px) {
     .sidebar {
-        position: absolute;
+        position: fixed;
+        top: 0;
+        left: 0;
         height: 100%;
-        width: 100%;
-        z-index: 50;
+        width: 85%;
+        max-width: 320px;
+        box-shadow: 20px 0 60px rgba(0, 0, 0, 0.8);
+        z-index: 1000;
     }
 
     .sidebar.hidden {
         transform: translateX(-100%);
+        box-shadow: none;
     }
 
     .btn-back {
         display: block;
-        margin-right: 12px;
+    }
+
+    .msg {
+        max-width: 85%;
+    }
+
+    .input-bar {
+        padding: 12px 16px;
+    }
+
+    .modal {
+        padding: 20px;
+        border-radius: 0;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
     }
 }
