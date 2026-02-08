@@ -637,23 +637,7 @@ const app = {
                     { urls: 'stun:stun2.l.google.com:19302' },
                     { urls: 'stun:stun3.l.google.com:19302' },
                     { urls: 'stun:stun4.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' },
-                    // TURN Relays (Mediators) for global connectivity
-                    {
-                        urls: 'turn:openrelay.metered.ca:80',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    }
+                    { urls: 'stun:global.stun.twilio.com:3478' }
                 ],
                 iceCandidatePoolSize: 10
             },
@@ -1661,7 +1645,12 @@ const app = {
             document.getElementById('syncTargetStatus').innerText = "Запрос затянулся. Попробуйте нажать кнопку ещё раз или проверьте интернет.";
         }, 12000);
 
-        const conn = this.peer.connect(targetId, { reliable: true });
+        if (targetId === this.myId || (this.peer && targetId === this.peer.id)) {
+            return this.showToast("Нельзя соединиться с самим собой ⚠️");
+        }
+
+        // Standard connection without options (reliable:true is deprecated/default)
+        const conn = this.peer.connect(targetId);
         conn.on('open', () => {
             clearTimeout(timeout);
             document.getElementById('syncTargetStatus').innerText = "Соединение установлено! Ожидайте подтверждения на другом устройстве...";
