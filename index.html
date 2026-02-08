@@ -615,11 +615,25 @@
                     <input type="checkbox" id="settingTgEnabled" onchange="app.toggleTg(this.checked)">
                 </label>
 
-                <div id="tgSettings" style="display:none;">
-                    <input type="text" id="tgChatId" class="big-input" style="font-size:12px; height:35px;"
-                        placeholder="Ваш Chat ID (от @userinfobot)">
-                    <button class="btn-main" style="background:#0088cc; height:35px; font-size:12px;"
-                        onclick="app.testTg()">Проверить связь</button>
+                <div id="tgSettings"
+                    style="display:none; background:var(--glass); padding:10px; border-radius:10px; margin-top:10px;">
+                    <div id="tgPairingContainer">
+                        <p id="tgPairingCodeDisplay"
+                            style="font-size:18px; font-weight:bold; color:var(--accent); letter-spacing:3px; margin:10px 0; display:none;">
+                            - - - - - -</p>
+                        <p id="tgPairingStatus" style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
+                            Привяжите аккаунт, чтобы получать уведомления.</p>
+                        <button id="tgPairBtn" class="btn-main" style="height:35px; font-size:13px; background:#0088cc;"
+                            onclick="app.startTgPairing()">Привязать через Код</button>
+                    </div>
+                    <div id="tgLinkedContainer" style="display:none;">
+                        <p style="font-size:12px; color:var(--text-dim);">Статус: <span
+                                style="color:#4dff4d;">Подключено</span></p>
+                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Chat ID: <span
+                                id="tgChatIdLabel">?</span></p>
+                        <button class="btn-main" style="height:35px; font-size:13px; background:var(--danger);"
+                            onclick="app.unlinkTg()">Отключить</button>
+                    </div>
                 </div>
             </div>
 
@@ -747,7 +761,15 @@
 
                 document.getElementById('settingTgEnabled').checked = this.tgEnabled;
                 document.getElementById('tgSettings').style.display = this.tgEnabled ? 'block' : 'none';
-                document.getElementById('tgChatId').value = this.tgChatId;
+
+                const isLinked = !!this.tgChatId;
+                document.getElementById('tgPairingContainer').style.display = isLinked ? 'none' : 'block';
+                document.getElementById('tgLinkedContainer').style.display = isLinked ? 'block' : 'none';
+                if (isLinked) document.getElementById('tgChatIdLabel').innerText = this.tgChatId;
+
+                document.getElementById('tgPairingCodeDisplay').style.display = 'none';
+                document.getElementById('tgPairingStatus').innerText = 'Привяжите аккаунт, чтобы получать уведомления.';
+                document.getElementById('tgPairBtn').disabled = false;
             },
 
             toggleIpCheck(val) {
@@ -762,15 +784,62 @@
                 document.getElementById('tgSettings').style.display = val ? 'block' : 'none';
             },
 
-            async testTg() {
-                this.tgChatId = document.getElementById('tgChatId').value.trim();
-                localStorage.setItem('p2p_tg_chatid', this.tgChatId);
+            async startTgPairing() {
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                this.pairingCode = code;
 
-                if (!this.tgChatId) return alert("Введите Chat ID!");
+                const display = document.getElementById('tgPairingCodeDisplay');
+                display.innerText = `${code.slice(0, 3)} ${code.slice(3)}`;
+                display.style.display = 'block';
+
+                document.getElementById('tgPairingStatus').innerText = "Отправьте этот код боту @p2p2fabot...";
+                document.getElementById('tgPairBtn').disabled = true;
+
+                this.isPairing = true;
+                this.pollTgPairing();
+            },
+
+            async pollTgPairing() {
+                if (!this.isPairing) return;
+
+                try {
+                    const res = await fetch(`https://api.telegram.org/bot${this.tgToken}/getUpdates?offset=-10&limit=10&timeout=5`);
+                    const data = await res.json();
+
+                    if (data.ok && data.result) {
+                        for (const update of data.result) {
+                            const msg = update.message;
+                            if (msg && msg.text && msg.text.replace(/\s/g, '') === this.pairingCode) {
+                                this.tgChatId = msg.chat.id.toString();
+                                localStorage.setItem('p2p_tg_chatid', this.tgChatId);
+
+                                this.isPairing = false;
+                                this.showToast("Telegram успешно привязан! 🎉");
+                                this.openSettings(); // Refresh UI
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) { console.error("Polling error:", e); }
+
+                if (this.isPairing) setTimeout(() => this.pollTgPairing(), 3000);
+            },
+
+            unlinkTg() {
+                if (confirm("Отключить уведомления в Telegram?")) {
+                    this.tgChatId = '';
+                    localStorage.removeItem('p2p_tg_chatid');
+                    this.isPairing = false;
+                    this.openSettings();
+                }
+            },
+
+            async testTg() {
+                if (!this.tgChatId) return alert("Сначала привяжите аккаунт!");
 
                 const ok = await this.sendToTg(`🛡️ Связь с P2P Messenger установлена!\n\nВаш Ключ Безопасности:\n${this.mySecret}`);
                 if (ok) this.showToast("Ключ отправлен в Telegram! ✈️");
-                else alert("Ошибка отправки! Проверьте Chat ID или убедитесь, что вы написали боту первым.");
+                else alert("Ошибка отправки! Убедитесь, что вы не заблокировали бота.");
             },
 
             async sendToTg(text) {
@@ -977,10 +1046,7 @@
                     }
 
                     // Save extra settings
-                    if (document.getElementById('tgChatId')) {
-                        this.tgChatId = document.getElementById('tgChatId').value.trim();
-                        localStorage.setItem('p2p_tg_chatid', this.tgChatId);
-                    }
+                    // (tgChatId is handled by pairing now)
 
                     this.updateMyProfileUI();
                     document.getElementById('settings-overlay').style.display = 'none';
