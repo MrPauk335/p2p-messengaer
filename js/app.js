@@ -18,6 +18,8 @@ const app = {
     tempSecret: null,
     pairingCode: null,
     isPairing: false,
+    tg2faCode: null,
+    lastTgUpdateId: 0,
 
     init() {
         // Инициализация палитры в сетапе
@@ -34,6 +36,7 @@ const app = {
             document.getElementById('setup-overlay').style.display = 'flex';
         } else {
             this.checkIP();
+            this.startTgPolling();
         }
 
         window.addEventListener('hashchange', () => this.checkHash());
@@ -172,8 +175,8 @@ const app = {
             const currentIp = data.ip;
 
             if (this.lastIp && this.lastIp !== currentIp) {
+                this.show2faStep('choice');
                 document.getElementById('ip-overlay').style.display = 'flex';
-                // Wait for verifySecret to call checkSecurity
             } else {
                 localStorage.setItem('p2p_last_ip', currentIp);
                 this.lastIp = currentIp;
@@ -185,6 +188,61 @@ const app = {
         }
     },
 
+    show2faStep(step) {
+        document.getElementById('ipFirstStep').style.display = step === 'choice' ? 'block' : 'none';
+        document.getElementById('ipKeyInputStep').style.display = step === 'key' ? 'block' : 'none';
+        document.getElementById('ipTgInputStep').style.display = step === 'tg' ? 'block' : 'none';
+
+        // Disable TG button if not linked
+        const tgBtn = document.getElementById('btnTgCodeReq');
+        if (tgBtn) {
+            tgBtn.disabled = !this.tgChatId;
+            tgBtn.style.opacity = this.tgChatId ? '1' : '0.5';
+            tgBtn.title = this.tgChatId ? '' : 'Telegram не привязан';
+        }
+    },
+
+    async requestTg2fa() {
+        if (!this.tgChatId) return;
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        this.tg2faCode = code;
+
+        const ok = await this.sendToTg(`🛡️ Код подтверждения входа для ${this.myNick}:\n\n${code}\n\nЕсли это не вы, отправьте /logout для блокировки сессии.`);
+        if (ok) {
+            this.show2faStep('tg');
+            this.showToast('Код отправлен! ✈️');
+        } else {
+            alert("Ошибка связи с Telegram!");
+        }
+    },
+
+    verifyTg2fa() {
+        const input = document.getElementById('ipTgCodeInput').value.trim();
+        if (input === this.tg2faCode) {
+            this.success2fa();
+        } else {
+            document.getElementById('tgIpError').innerText = "Неверный код!";
+        }
+    },
+
+    verifySecret() {
+        const input = document.getElementById('ipSecretInput').value.trim();
+        if (input === this.mySecret) {
+            this.success2fa();
+        } else {
+            document.getElementById('ipError').innerText = "Неверный секретный ключ!";
+        }
+    },
+
+    success2fa() {
+        document.getElementById('ip-overlay').style.display = 'none';
+        fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => {
+            localStorage.setItem('p2p_last_ip', d.ip);
+            this.lastIp = d.ip;
+        });
+        this.checkSecurity();
+    },
+
     checkSecurity() {
         if (this.myPass) {
             this.showLock();
@@ -193,19 +251,6 @@ const app = {
         }
     },
 
-    verifySecret() {
-        const input = document.getElementById('ipSecretInput').value.trim();
-        if (input === this.mySecret) {
-            document.getElementById('ip-overlay').style.display = 'none';
-            fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => {
-                localStorage.setItem('p2p_last_ip', d.ip);
-                this.lastIp = d.ip;
-            });
-            this.checkSecurity();
-        } else {
-            document.getElementById('ipError').innerText = "Неверный секретный ключ!";
-        }
-    },
 
     showLock() {
         document.getElementById('lock-overlay').style.display = 'flex';
@@ -330,7 +375,12 @@ const app = {
 
     updateProfile() {
         const newName = document.getElementById('editName').value.trim();
+        const oldPassInput = document.getElementById('oldPass').value;
         const newPass = document.getElementById('editPass').value.trim();
+
+        if (this.myPass && oldPassInput !== this.myPass) {
+            return alert("Неверный текущий пароль!");
+        }
 
         if (newName.length >= 2) {
             this.myNick = newName;
@@ -339,19 +389,56 @@ const app = {
             if (newPass) {
                 this.myPass = newPass;
                 localStorage.setItem('p2p_pass', this.myPass);
-            } else if (newPass === "" && confirm("Удалить пароль?")) {
+            } else if (document.getElementById('editPass').value === "" && confirm("Удалить пароль?")) {
                 this.myPass = null;
                 localStorage.removeItem('p2p_pass');
             }
 
             this.updateMyProfileUI();
             document.getElementById('settings-overlay').style.display = 'none';
+            document.getElementById('oldPass').value = '';
+            document.getElementById('editPass').value = '';
             this.showToast('Профиль обновлен! ✨');
 
             Object.values(this.connections).forEach(conn => {
                 conn.send({ type: 'handshake', nick: this.myNick, color: this.myColor });
             });
         }
+    },
+
+    startTgPolling() {
+        if (!this.tgEnabled || !this.tgChatId) return;
+        this.pollTgCommands();
+    },
+
+    async pollTgCommands() {
+        if (!this.tgEnabled || !this.tgChatId) return;
+
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${this.tgToken}/getUpdates?offset=${this.lastTgUpdateId + 1}&limit=10&timeout=5`);
+            const data = await res.json();
+
+            if (data.ok && data.result) {
+                for (const update of data.result) {
+                    this.lastTgUpdateId = update.update_id;
+                    const msg = update.message;
+                    if (msg && msg.chat.id.toString() === this.tgChatId) {
+                        const cmd = msg.text ? msg.text.toLowerCase().trim() : '';
+                        if (cmd === '/logout' || cmd === '/kick') {
+                            this.sendToTg("🚫 Команда на выход получена. Сессия закрыта.");
+                            this.logout(true); // Forced logout
+                            return;
+                        } else if (cmd === '/status') {
+                            this.sendToTg(`📊 Статус сессии:\n👤 Ник: ${this.myNick}\n🌐 IP: ${this.lastIp}\n📶 Сеть: PeerJS Active`);
+                        } else if (cmd === '/help' || cmd === '/start') {
+                            this.sendToTg(`🤖 Доступные команды:\n/status - проверить состояние\n/logout - завершить сессию\n/kick - то же самое что logout`);
+                        }
+                    }
+                }
+            }
+        } catch (e) { }
+
+        setTimeout(() => this.pollTgCommands(), 5000);
     },
 
     handleConnection(conn) {
@@ -658,8 +745,8 @@ const app = {
         }
     },
 
-    logout() {
-        if (confirm("Выйти из аккаунта? История и контакты сохранятся.")) {
+    logout(forced = false) {
+        if (forced || confirm("Выйти из аккаунта? История и контакты сохранятся.")) {
             localStorage.removeItem('p2p_nick');
             localStorage.removeItem('p2p_uid');
             localStorage.removeItem('p2p_pass');
