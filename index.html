@@ -586,12 +586,46 @@
             <p>Безопасность и профиль</p>
             <input type="text" id="editName" class="big-input" placeholder="Новое имя">
             <input type="password" id="editPass" class="big-input" placeholder="Новый пароль">
-            <button class="btn-main" onclick="app.updateProfile()">Сохранить</button>
-            <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn-main" style="background:var(--accent);"
+
+            <div class="settings-section"
+                style="text-align:left; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                <h3 style="font-size:14px; margin-bottom:10px;">🛡️ Безопасность</h3>
+
+                <label class="switch-item"
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; cursor:pointer;">
+                    <span style="font-size:13px;">Проверка по IP</span>
+                    <input type="checkbox" id="settingIpCheck" onchange="app.toggleIpCheck(this.checked)">
+                </label>
+
+                <p id="keyWarning"
+                    style="color:var(--danger); font-size:12px; margin:10px 0; font-weight:bold; display:none;">
+                    🔴 ВНИМАНИЕ: Если вы потеряете Ключ Безопасности, доступ к аккаунту будет невозможен!
+                </p>
+
+                <button class="btn-main" style="background:var(--accent); margin-bottom:10px;"
                     onclick="alert('Ваш Ключ Безопасности:\n' + app.mySecret)">Показать Ключ</button>
-                <button class="btn-main" style="background:#252525;" onclick="app.exportData()">Экспорт</button>
-                <button class="btn-main" style="background:#252525;" onclick="app.importData()">Импорт</button>
+
+                <h3 style="font-size:14px; margin:20px 0 10px;">🤖 Telegram Уведомления</h3>
+                <label class="switch-item"
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; cursor:pointer;">
+                    <span style="font-size:13px;">Включить TG Бота</span>
+                    <input type="checkbox" id="settingTgEnabled" onchange="app.toggleTg(this.checked)">
+                </label>
+
+                <div id="tgSettings" style="display:none;">
+                    <input type="text" id="tgToken" class="big-input" style="font-size:12px; height:35px;"
+                        placeholder="Bot Token (от @BotFather)">
+                    <input type="text" id="tgChatId" class="big-input" style="font-size:12px; height:35px;"
+                        placeholder="Chat ID (от @userinfobot)">
+                    <button class="btn-main" style="background:#0088cc; height:35px; font-size:12px;"
+                        onclick="app.testTg()">Отправить Ключ в TG</button>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                <button class="btn-main" style="flex:1" onclick="app.updateProfile()">Сохранить</button>
+                <button class="btn-main" style="flex:1; background:#252525;" onclick="app.exportData()">Экспорт</button>
+                <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
             <button class="btn-main" style="background:var(--danger); margin-top:20px;"
                 onclick="app.clearData()">Удалить аккаунт</button>
@@ -605,8 +639,7 @@
                 <h2 id="myNickDisplay">Загрузка...</h2>
                 <small onclick="app.copyMyId()">Нажмите, чтобы скопировать ID</small>
             </div>
-            <div class="btn-settings" onclick="document.getElementById('settings-overlay').style.display='flex'">⚙️
-            </div>
+            <div class="btn-settings" onclick="app.openSettings()">⚙️</div>
         </div>
 
         <div class="search-container">
@@ -662,6 +695,10 @@
             connections: {},
             activeChatId: null,
             setupMode: 'reg', // 'reg' or 'login'
+            ipCheck: localStorage.getItem('p2p_ip_check') !== 'false',
+            tgEnabled: localStorage.getItem('p2p_tg_enabled') === 'true',
+            tgToken: localStorage.getItem('p2p_tg_token') || '',
+            tgChatId: localStorage.getItem('p2p_tg_chatid') || '',
 
             init() {
                 // Инициализация палитры в сетапе
@@ -702,8 +739,59 @@
                 document.getElementById('setupBtn').innerText = isReg ? 'Начать работу' : 'Войти';
             },
 
+            openSettings() {
+                document.getElementById('settings-overlay').style.display = 'flex';
+                document.getElementById('settingIpCheck').checked = this.ipCheck;
+                document.getElementById('keyWarning').style.display = this.ipCheck ? 'block' : 'none';
+
+                document.getElementById('settingTgEnabled').checked = this.tgEnabled;
+                document.getElementById('tgSettings').style.display = this.tgEnabled ? 'block' : 'none';
+                document.getElementById('tgToken').value = this.tgToken;
+                document.getElementById('tgChatId').value = this.tgChatId;
+            },
+
+            toggleIpCheck(val) {
+                this.ipCheck = val;
+                localStorage.setItem('p2p_ip_check', val);
+                document.getElementById('keyWarning').style.display = val ? 'block' : 'none';
+            },
+
+            toggleTg(val) {
+                this.tgEnabled = val;
+                localStorage.setItem('p2p_tg_enabled', val);
+                document.getElementById('tgSettings').style.display = val ? 'block' : 'none';
+            },
+
+            async testTg() {
+                this.tgToken = document.getElementById('tgToken').value.trim();
+                this.tgChatId = document.getElementById('tgChatId').value.trim();
+                localStorage.setItem('p2p_tg_token', this.tgToken);
+                localStorage.setItem('p2p_tg_chatid', this.tgChatId);
+
+                if (!this.tgToken || !this.tgChatId) return alert("Введите Token и Chat ID!");
+
+                const ok = await this.sendToTg(`🛡️ Ваш Ключ Безопасности P2P Messenger:\n\n${this.mySecret}\n\nНикогда не передавайте его третьим лицам!`);
+                if (ok) this.showToast("Ключ отправлен в Telegram! ✈️");
+                else alert("Ошибка отправки! Проверьте Token и Chat ID.");
+            },
+
+            async sendToTg(text) {
+                if (!this.tgEnabled || !this.tgToken || !this.tgChatId) return false;
+                try {
+                    const url = `https://api.telegram.org/bot${this.tgToken}/sendMessage`;
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: this.tgChatId, text: text })
+                    });
+                    return res.ok;
+                } catch (e) { return false; }
+            },
+
             async checkIP() {
                 try {
+                    if (!this.ipCheck) return this.start();
+
                     const res = await fetch('https://api.ipify.org?format=json');
                     const data = await res.json();
                     const currentIp = data.ip;
@@ -814,6 +902,10 @@
                 localStorage.setItem('p2p_pass', this.myPass);
                 localStorage.setItem('p2p_secret', this.mySecret);
 
+                if (this.tgEnabled) {
+                    this.sendToTg(`🛡️ Ваш Ключ Безопасности для аккаунта ${this.myNick}:\n\n${this.mySecret}`);
+                }
+
                 try {
                     const res = await fetch('https://api.ipify.org?format=json');
                     const d = await res.json();
@@ -884,6 +976,14 @@
                     } else if (newPass === "" && confirm("Удалить пароль?")) {
                         this.myPass = null;
                         localStorage.removeItem('p2p_pass');
+                    }
+
+                    // Save extra settings
+                    if (document.getElementById('tgToken')) {
+                        this.tgToken = document.getElementById('tgToken').value.trim();
+                        this.tgChatId = document.getElementById('tgChatId').value.trim();
+                        localStorage.setItem('p2p_tg_token', this.tgToken);
+                        localStorage.setItem('p2p_tg_chatid', this.tgChatId);
                     }
 
                     this.updateMyProfileUI();
