@@ -21,6 +21,7 @@ const app = {
     tempChatId: '',
     deferredPrompt: null,
     currentContext: 'home', // 'home' or gid
+    isElectron: navigator.userAgent.toLowerCase().includes('electron'),
 
     normalizeId(id) {
         if (!id) return '';
@@ -181,6 +182,10 @@ const app = {
             }
         }, 3000);
         this.initPWA();
+        if (this.isElectron) {
+            const installBox = document.getElementById('p2pInstallContainer');
+            if (installBox) installBox.style.display = 'none';
+        }
         this.updateRailGroups();
     },
 
@@ -1524,6 +1529,14 @@ const app = {
         t.innerText = msg;
         t.classList.add('show');
         setTimeout(() => t.classList.remove('show'), 3000);
+    },
+
+    openSettings() {
+        const overlay = document.getElementById('settings-overlay');
+        const modal = overlay.querySelector('.modal');
+        overlay.style.display = 'flex';
+        if (modal) modal.scrollTop = 0;
+        this.updateEncryptionStatus();
     },
 
     async exportPublicKey() {

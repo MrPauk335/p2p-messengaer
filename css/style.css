@@ -426,10 +426,12 @@ body {
     background: var(--bg-dark);
     width: 90%;
     max-width: 440px;
+    max-height: 85vh;
     border-radius: 12px;
     padding: 24px;
     position: relative;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
 }
 
 .big-input {
