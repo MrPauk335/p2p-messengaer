@@ -1,0 +1,672 @@
+const app = {
+    peer: null,
+    myId: localStorage.getItem('p2p_uid'),
+    myNick: localStorage.getItem('p2p_nick'),
+    myPass: localStorage.getItem('p2p_pass'),
+    mySecret: localStorage.getItem('p2p_secret'),
+    lastIp: localStorage.getItem('p2p_last_ip'),
+    myColor: localStorage.getItem('p2p_color') || '#0084ff',
+    contacts: JSON.parse(localStorage.getItem('p2p_contacts') || '{}'),
+    history: JSON.parse(localStorage.getItem('p2p_history') || '{}'),
+    connections: {},
+    activeChatId: null,
+    setupMode: 'reg',
+    ipCheck: localStorage.getItem('p2p_ip_check') !== 'false',
+    tgEnabled: localStorage.getItem('p2p_tg_enabled') === 'true',
+    tgToken: '8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4',
+    tgChatId: localStorage.getItem('p2p_tg_chatid') || '',
+    tempSecret: null,
+    pairingCode: null,
+    isPairing: false,
+
+    init() {
+        // Инициализация палитры в сетапе
+        document.querySelectorAll('.color-dot').forEach(dot => {
+            dot.onclick = () => {
+                document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+                dot.classList.add('active');
+                this.myColor = dot.dataset.color;
+            };
+        });
+
+        if (!this.myNick) {
+            this.genSecret();
+            document.getElementById('setup-overlay').style.display = 'flex';
+        } else {
+            this.checkIP();
+        }
+
+        window.addEventListener('hashchange', () => this.checkHash());
+    },
+
+    genSecret() {
+        const secret = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+        this.tempSecret = secret;
+        const box = document.getElementById('setup-secret-box');
+        if (box) box.style.display = 'block';
+    },
+
+    setSetupMode(mode) {
+        this.setupMode = mode;
+        const isReg = mode === 'reg';
+
+        document.getElementById('setupTitle').innerText = isReg ? 'Создать профиль' : 'Войти в аккаунт';
+        document.getElementById('setupDesc').innerText = isReg ? 'Выберите имя, цвет и пароль' : 'Введите данные вашего аккаунта';
+
+        document.getElementById('modeReg').classList.toggle('active', isReg);
+        document.getElementById('modeReg').style.background = isReg ? 'var(--accent)' : '#252525';
+        document.getElementById('modeLogin').classList.toggle('active', !isReg);
+        document.getElementById('modeLogin').style.background = !isReg ? 'var(--accent)' : '#252525';
+
+        document.getElementById('setupColors').style.display = isReg ? 'flex' : 'none';
+        document.getElementById('setupSecretInput').style.display = isReg ? 'none' : 'block';
+        document.getElementById('setup-secret-box').style.display = (isReg && this.tempSecret) ? 'block' : 'none';
+
+        document.getElementById('setupBtn').innerText = isReg ? 'Начать работу' : 'Войти';
+    },
+
+    openSettings() {
+        document.getElementById('settings-overlay').style.display = 'flex';
+        document.getElementById('settingIpCheck').checked = this.ipCheck;
+        document.getElementById('keyWarning').style.display = this.ipCheck ? 'block' : 'none';
+
+        document.getElementById('settingTgEnabled').checked = this.tgEnabled;
+        document.getElementById('tgSettings').style.display = this.tgEnabled ? 'block' : 'none';
+
+        const isLinked = !!this.tgChatId;
+        document.getElementById('tgPairingContainer').style.display = isLinked ? 'none' : 'block';
+        document.getElementById('tgLinkedContainer').style.display = isLinked ? 'block' : 'none';
+        if (isLinked) document.getElementById('tgChatIdLabel').innerText = this.tgChatId;
+
+        document.getElementById('tgPairingCodeDisplay').style.display = 'none';
+        document.getElementById('tgPairingStatus').innerText = 'Привяжите аккаунт, чтобы получать уведомления.';
+        document.getElementById('tgPairBtn').disabled = false;
+    },
+
+    toggleIpCheck(val) {
+        this.ipCheck = val;
+        localStorage.setItem('p2p_ip_check', val);
+        document.getElementById('keyWarning').style.display = val ? 'block' : 'none';
+    },
+
+    toggleTg(val) {
+        this.tgEnabled = val;
+        localStorage.setItem('p2p_tg_enabled', val);
+        document.getElementById('tgSettings').style.display = val ? 'block' : 'none';
+    },
+
+    async startTgPairing() {
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        this.pairingCode = code;
+
+        const display = document.getElementById('tgPairingCodeDisplay');
+        display.innerText = `${code.slice(0, 3)} ${code.slice(3)}`;
+        display.style.display = 'block';
+
+        document.getElementById('tgPairingStatus').innerText = "Отправьте этот код боту @p2p2fabot...";
+        document.getElementById('tgPairBtn').disabled = true;
+
+        this.isPairing = true;
+        this.pollTgPairing();
+    },
+
+    async pollTgPairing() {
+        if (!this.isPairing) return;
+
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${this.tgToken}/getUpdates?offset=-10&limit=10&timeout=5`);
+            const data = await res.json();
+
+            if (data.ok && data.result) {
+                for (const update of data.result) {
+                    const msg = update.message;
+                    if (msg && msg.text && msg.text.replace(/\s/g, '') === this.pairingCode) {
+                        this.tgChatId = msg.chat.id.toString();
+                        localStorage.setItem('p2p_tg_chatid', this.tgChatId);
+
+                        this.isPairing = false;
+                        this.showToast("Telegram успешно привязан! 🎉");
+                        this.openSettings(); // Refresh UI
+                        return;
+                    }
+                }
+            }
+        } catch (e) { console.error("Polling error:", e); }
+
+        if (this.isPairing) setTimeout(() => this.pollTgPairing(), 3000);
+    },
+
+    unlinkTg() {
+        if (confirm("Отключить уведомления в Telegram?")) {
+            this.tgChatId = '';
+            localStorage.removeItem('p2p_tg_chatid');
+            this.isPairing = false;
+            this.openSettings();
+        }
+    },
+
+    async testTg() {
+        if (!this.tgChatId) return alert("Сначала привяжите аккаунт!");
+
+        const ok = await this.sendToTg(`🛡️ Связь с P2P Messenger установлена!\n\nВаш Ключ Безопасности:\n${this.mySecret}`);
+        if (ok) this.showToast("Ключ отправлен в Telegram! ✈️");
+        else alert("Ошибка отправки! Убедитесь, что вы не заблокировали бота.");
+    },
+
+    async sendToTg(text) {
+        if (!this.tgEnabled || !this.tgToken || !this.tgChatId) return false;
+        try {
+            const url = `https://api.telegram.org/bot${this.tgToken}/sendMessage?chat_id=${this.tgChatId}&text=${encodeURIComponent(text)}`;
+            fetch(url, { mode: 'no-cors' });
+            return true;
+        } catch (e) { return false; }
+    },
+
+    async checkIP() {
+        try {
+            if (!this.ipCheck) return this.start();
+
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            const currentIp = data.ip;
+
+            if (this.lastIp && this.lastIp !== currentIp) {
+                document.getElementById('ip-overlay').style.display = 'flex';
+            } else {
+                localStorage.setItem('p2p_last_ip', currentIp);
+                this.lastIp = currentIp;
+                this.start(); // Пропускаем пароль, если IP совпадает
+            }
+        } catch (e) {
+            console.warn("IP check failed, skipping for privacy/connectivity reasons");
+            this.checkSecurity();
+        }
+    },
+
+    checkSecurity() {
+        if (this.myPass) {
+            this.showLock();
+        } else {
+            this.start();
+        }
+    },
+
+    verifySecret() {
+        const input = document.getElementById('ipSecretInput').value.trim();
+        if (input === this.mySecret) {
+            document.getElementById('ip-overlay').style.display = 'none';
+            fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => {
+                localStorage.setItem('p2p_last_ip', d.ip);
+                this.lastIp = d.ip;
+            });
+            this.checkSecurity();
+        } else {
+            document.getElementById('ipError').innerText = "Неверный секретный ключ!";
+        }
+    },
+
+    showLock() {
+        document.getElementById('lock-overlay').style.display = 'flex';
+        document.getElementById('lockNick').innerText = this.myNick;
+        const av = document.getElementById('lockAvatar');
+        av.innerText = this.myNick.charAt(0).toUpperCase();
+        av.style.background = this.myColor;
+        document.getElementById('lockPass').focus();
+    },
+
+    unlock() {
+        const pass = document.getElementById('lockPass').value;
+        if (pass === this.myPass) {
+            document.getElementById('lock-overlay').style.display = 'none';
+            this.start();
+        } else {
+            document.getElementById('lockError').innerText = "Неверный пароль";
+        }
+    },
+
+    async finishSetup() {
+        const name = document.getElementById('setupName').value.trim();
+        const pass = document.getElementById('setupPass').value.trim();
+        const secret = document.getElementById('setupSecretInput').value.trim();
+
+        if (name.length < 2) {
+            return document.getElementById('setupError').innerText = "Слишком короткое имя";
+        }
+        if (!pass) {
+            return document.getElementById('setupError').innerText = "Пароль обязателен для защиты";
+        }
+        if (this.setupMode === 'login' && !secret) {
+            return document.getElementById('setupError').innerText = "Введите Ключ Безопасности";
+        }
+
+        document.getElementById('setupBtn').innerText = this.setupMode === 'reg' ? "Проверка имени..." : "Вход...";
+        document.getElementById('setupBtn').disabled = true;
+
+        const testPeerId = `p2p_user_${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+        if (this.setupMode === 'reg') {
+            const isTaken = await this.checkIdTaken(testPeerId);
+            if (isTaken) {
+                document.getElementById('setupBtn').innerText = "Начать работу";
+                document.getElementById('setupBtn').disabled = false;
+                return document.getElementById('setupError').innerText = "Этот никнейм уже занят!";
+            }
+            this.mySecret = this.tempSecret;
+        } else {
+            this.mySecret = secret;
+        }
+
+        this.myNick = name;
+        this.myId = testPeerId;
+        this.myPass = pass;
+
+        localStorage.setItem('p2p_nick', this.myNick);
+        localStorage.setItem('p2p_uid', this.myId);
+        localStorage.setItem('p2p_color', this.myColor);
+        localStorage.setItem('p2p_pass', this.myPass);
+        localStorage.setItem('p2p_secret', this.mySecret);
+
+        if (this.tgEnabled) {
+            this.sendToTg(`🛡️ Ваш Ключ Безопасности для аккаунта ${this.myNick}:\n\n${this.mySecret}`);
+        }
+
+        try {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const d = await res.json();
+            localStorage.setItem('p2p_last_ip', d.ip);
+        } catch (e) { }
+
+        document.getElementById('setup-overlay').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('setup-overlay').style.display = 'none';
+            this.start();
+        }, 300);
+    },
+
+    async checkIdTaken(id) {
+        return new Promise((resolve) => {
+            const p = new Peer(id);
+            p.on('open', () => { p.destroy(); resolve(false); });
+            p.on('error', (err) => {
+                if (err.type === 'unavailable-id') { p.destroy(); resolve(true); }
+                else { p.destroy(); resolve(false); }
+            });
+            setTimeout(() => { if (!p.destroyed) { p.destroy(); resolve(false); } }, 5000);
+        });
+    },
+
+    start() {
+        this.updateMyProfileUI();
+
+        this.peer = new Peer(this.myId, {
+            config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+        });
+
+        this.peer.on('open', (id) => {
+            console.log('Peer ID:', id);
+            this.checkHash();
+            this.reconnect();
+        });
+
+        this.peer.on('connection', (conn) => this.handleConnection(conn));
+        this.peer.on('error', (err) => {
+            if (err.type === 'unavailable-id') {
+                this.showToast('Ошибка: Этот никнейм уже используется на другом устройстве ⚠️');
+            }
+        });
+
+        this.refreshContacts();
+    },
+
+    updateMyProfileUI() {
+        document.getElementById('myNickDisplay').innerText = this.myNick;
+        const avatar = document.getElementById('myAvatarDisplay');
+        avatar.innerText = this.myNick.charAt(0).toUpperCase();
+        avatar.style.background = this.myColor;
+        document.getElementById('editName').value = this.myNick;
+    },
+
+    updateProfile() {
+        const newName = document.getElementById('editName').value.trim();
+        const newPass = document.getElementById('editPass').value.trim();
+
+        if (newName.length >= 2) {
+            this.myNick = newName;
+            localStorage.setItem('p2p_nick', this.myNick);
+
+            if (newPass) {
+                this.myPass = newPass;
+                localStorage.setItem('p2p_pass', this.myPass);
+            } else if (newPass === "" && confirm("Удалить пароль?")) {
+                this.myPass = null;
+                localStorage.removeItem('p2p_pass');
+            }
+
+            this.updateMyProfileUI();
+            document.getElementById('settings-overlay').style.display = 'none';
+            this.showToast('Профиль обновлен! ✨');
+
+            Object.values(this.connections).forEach(conn => {
+                conn.send({ type: 'handshake', nick: this.myNick, color: this.myColor });
+            });
+        }
+    },
+
+    handleConnection(conn) {
+        conn.on('open', () => {
+            conn.send({ type: 'handshake', nick: this.myNick, color: this.myColor });
+            this.connections[conn.peer] = conn;
+            if (!this.contacts[conn.peer]) {
+                this.addContact(conn.peer, 'Входящий запрос', '#555');
+            }
+            this.updateOnlineStatus(conn.peer, true);
+        });
+
+        conn.on('data', (data) => {
+            if (data.type === 'handshake') {
+                this.contacts[conn.peer].name = data.nick;
+                this.contacts[conn.peer].color = data.color || '#555';
+                this.saveContacts();
+                this.refreshContacts();
+                if (this.activeChatId === conn.peer) this.updateChatHeader();
+            } else if (data.type === 'msg') {
+                this.saveMsg(conn.peer, data.text, 'them');
+            }
+        });
+
+        conn.on('close', () => {
+            delete this.connections[conn.peer];
+            this.updateOnlineStatus(conn.peer, false);
+        });
+    },
+
+    tryAddFriend() {
+        const input = document.getElementById('contactSearch');
+        let id = input.value.trim();
+        if (!id) return;
+
+        if (!id.startsWith('p2p_user_') && !id.startsWith('u_')) {
+            id = `p2p_user_${id.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        }
+
+        if (id !== this.myId) {
+            if (!this.contacts[id]) {
+                this.addContact(id, 'Поиск...', '#555');
+            }
+            this.selectChat(id);
+            input.value = '';
+        }
+    },
+
+    addContact(id, name, color) {
+        this.contacts[id] = { name, color, last: '' };
+        this.saveContacts();
+        this.refreshContacts();
+    },
+
+    esc(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+
+    selectChat(id) {
+        this.activeChatId = id;
+        this.updateChatHeader();
+
+        document.getElementById('msgInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('msgInput').focus();
+
+        if (window.innerWidth <= 768) this.toggleSidebar();
+
+        this.renderHistory(id);
+        this.refreshContacts();
+
+        if (!this.connections[id]) {
+            const conn = this.peer.connect(id);
+            this.handleConnection(conn);
+        }
+    },
+
+    updateChatHeader() {
+        const c = this.contacts[this.activeChatId];
+        if (!c) return;
+
+        const warning = this.checkHomograph(c.name) ? ' <span class="warning-badge" title="Внимание! Имя содержит похожие символы разных алфавитов (подделка)">⚠️</span>' : '';
+        document.getElementById('chatName').innerHTML = this.esc(c.name) + warning;
+
+        document.getElementById('chatStatus').innerText = this.connections[this.activeChatId] ? 'В сети' : 'Не в сети';
+        const av = document.getElementById('chatAvatar');
+        av.innerText = c.name.charAt(0).toUpperCase();
+        av.style.background = c.color;
+
+        const safety = document.getElementById('chatSafety');
+        safety.style.display = 'flex';
+        document.getElementById('fingerprintValue').innerText = this.genFingerprint(this.myId, this.activeChatId);
+    },
+
+    checkHomograph(name) {
+        const hasLatin = /[a-zA-Z]/.test(name);
+        const hasCyrillic = /[а-яА-ЯёЁ]/.test(name);
+        return hasLatin && hasCyrillic;
+    },
+
+    genFingerprint(id1, id2) {
+        const combined = [id1, id2].sort().join('');
+        let hash = 0;
+        for (let i = 0; i < combined.length; i++) {
+            hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+            hash |= 0;
+        }
+        const emojis = ['🕶️', '🚀', '🔒', '💎', '🛡️', '🛰️', '⚡', '🌌', '🎈', '🍀'];
+        let res = '';
+        const hStr = Math.abs(hash).toString();
+        for (let i = 0; i < 4; i++) {
+            res += emojis[parseInt(hStr[i] || i) % emojis.length];
+        }
+        return res;
+    },
+
+    showSafetyInfo() {
+        alert(`Код безопасности: ${document.getElementById('fingerprintValue').innerText}\nЕсли у вашего собеседника такой же код — ваш чат на 100% приватен.`);
+    },
+
+    sendMessage() {
+        const input = document.getElementById('msgInput');
+        const text = input.value.trim();
+        const id = this.activeChatId;
+        if (!text || !id) return;
+
+        if (this.connections[id] && this.connections[id].open) {
+            this.connections[id].send({ type: 'msg', text });
+            this.saveMsg(id, text, 'me');
+            input.value = '';
+        } else {
+            this.showToast('Собеседник не в сети 🚫');
+        }
+    },
+
+    saveMsg(id, text, side) {
+        if (!this.history[id]) this.history[id] = [];
+        const time = new Date().toLocaleTimeString().slice(0, 5);
+        this.history[id].push({ text, side, time });
+        localStorage.setItem('p2p_history', JSON.stringify(this.history));
+
+        if (this.activeChatId === id) {
+            this.appendBubble(text, side, time);
+        }
+        this.contacts[id].last = (side === 'me' ? 'Вы: ' : '') + text;
+        this.saveContacts();
+        this.refreshContacts();
+    },
+
+    renderHistory(id) {
+        const box = document.getElementById('messages');
+        box.innerHTML = '';
+        if (this.history[id]) {
+            this.history[id].forEach(m => this.appendBubble(m.text, m.side, m.time));
+        }
+    },
+
+    appendBubble(text, side, time) {
+        const box = document.getElementById('messages');
+        const div = document.createElement('div');
+        div.className = `msg ${side}`;
+        div.innerHTML = `${this.esc(text)} <time>${time}</time>`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    },
+
+    refreshContacts() {
+        const list = document.getElementById('contactList');
+        list.innerHTML = '';
+        const search = document.getElementById('contactSearch').value.toLowerCase();
+
+        Object.keys(this.contacts).forEach(id => {
+            const c = this.contacts[id];
+            if (search && !c.name.toLowerCase().includes(search) && !id.toLowerCase().includes(search)) return;
+
+            const active = this.activeChatId === id ? 'active' : '';
+            const online = this.connections[id] ? 'online' : '';
+
+            const el = document.createElement('div');
+            el.className = `contact ${active}`;
+            el.onclick = () => this.selectChat(id);
+            el.innerHTML = `
+                <div class="avatar" style="background:${c.color}">${this.esc(c.name.charAt(0).toUpperCase())}</div>
+                <div class="contact-details">
+                    <div>${this.esc(c.name)}</div>
+                    <span>${this.esc(c.last || 'Нет сообщений')}</span>
+                </div>
+                <div class="status-dot ${online}"></div>
+            `;
+            list.appendChild(el);
+        });
+    },
+
+    updateOnlineStatus(id, isOnline) {
+        if (this.activeChatId === id) {
+            document.getElementById('chatStatus').innerText = isOnline ? 'В сети' : 'Не в сети';
+        }
+        this.refreshContacts();
+    },
+
+    saveContacts() {
+        localStorage.setItem('p2p_contacts', JSON.stringify(this.contacts));
+    },
+
+    reconnect() {
+        Object.keys(this.contacts).forEach(id => {
+            if (!this.connections[id]) {
+                const conn = this.peer.connect(id);
+                this.handleConnection(conn);
+            }
+        });
+    },
+
+    checkHash() {
+        const hash = window.location.hash.replace('#', '');
+        const isLegacy = hash.startsWith('u_');
+        const isNew = hash.startsWith('p2p_user_');
+
+        if (hash && (isLegacy || isNew) && hash !== this.myId) {
+            if (!this.contacts[hash]) this.addContact(hash, 'Загрузка...', '#555');
+            this.selectChat(hash);
+            history.replaceState(null, null, ' ');
+        }
+    },
+
+    shareInvite() {
+        const url = `${window.location.origin}${window.location.pathname}#${this.myId}`;
+        if (navigator.share) {
+            navigator.share({
+                title: 'Мессенджер P2P',
+                text: 'Давай общаться в приватном P2P мессенджере!',
+                url: url
+            }).catch(console.error);
+        } else {
+            navigator.clipboard.writeText(url).then(() => this.showToast('Ссылка скопирована! 🔗'));
+        }
+    },
+
+    showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    },
+
+    copyMyId() {
+        navigator.clipboard.writeText(this.myId).then(() => this.showToast('ID скопирован! 🆔'));
+    },
+
+    toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('hidden');
+    },
+
+    exportData() {
+        const data = {
+            nick: this.myNick,
+            uid: this.myId,
+            color: this.myColor,
+            pass: this.myPass,
+            contacts: this.contacts,
+            history: this.history
+        };
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `messenger_backup_${this.myNick}.json`;
+        a.click();
+    },
+
+    importData() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (re) => {
+                try {
+                    const data = JSON.parse(re.target.result);
+                    if (confirm("Это заменит все ваши текущие данные. Продолжить?")) {
+                        localStorage.setItem('p2p_nick', data.nick);
+                        localStorage.setItem('p2p_uid', data.uid);
+                        localStorage.setItem('p2p_color', data.color);
+                        if (data.pass) localStorage.setItem('p2p_pass', data.pass);
+                        localStorage.setItem('p2p_contacts', JSON.stringify(data.contacts));
+                        localStorage.setItem('p2p_history', JSON.stringify(data.history));
+                        location.reload();
+                    }
+                } catch (err) { alert("Ошибка при чтении файла"); }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    },
+
+    clearData() {
+        if (confirm('Это полностью удалит ваш ID и историю чатов. Продолжить?')) {
+            localStorage.clear();
+            location.reload();
+        }
+    },
+
+    logout() {
+        if (confirm("Выйти из аккаунта? История и контакты сохранятся.")) {
+            localStorage.removeItem('p2p_nick');
+            localStorage.removeItem('p2p_uid');
+            localStorage.removeItem('p2p_pass');
+            localStorage.removeItem('p2p_secret');
+            localStorage.removeItem('p2p_last_ip');
+            location.reload();
+        }
+    }
+};
+
+app.init();
