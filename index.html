@@ -776,13 +776,13 @@
             async sendToTg(text) {
                 if (!this.tgEnabled || !this.tgToken || !this.tgChatId) return false;
                 try {
-                    const url = `https://api.telegram.org/bot${this.tgToken}/sendMessage`;
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ chat_id: this.tgChatId, text: text })
-                    });
-                    return res.ok;
+                    // Используем GET запрос, так как POST блокируется CORS в браузере
+                    // Это "best effort" отправка, так как мы не можем прочитать ответ из-за CORS
+                    const url = `https://api.telegram.org/bot${this.tgToken}/sendMessage?chat_id=${this.tgChatId}&text=${encodeURIComponent(text)}`;
+
+                    // fetch с mode 'no-cors' позволяет отправить запрос, но не дает прочитать ответ
+                    fetch(url, { mode: 'no-cors' });
+                    return true;
                 } catch (e) { return false; }
             },
 
