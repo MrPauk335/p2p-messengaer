@@ -665,10 +665,10 @@ const app = {
             let statusText = '<span style="color:var(--danger)">Оффлайн 🔴</span>';
             if (this.peer) {
                 if (this.peer.open) statusText = '<span style="color:var(--success)">В сети 🟢</span>';
-                else if (this.peer.disconnected) statusText = '<span style="color:var(--warning)">Отключен 🟡</span>';
+                else if (this.peer.disconnected) statusText = '<span style="color:var(--warning)" onclick="app.reconnect()" title="Нажмите для переподключения">Отключен 🟡 (Нажать 🔄)</span>';
                 else statusText = '<span style="color:var(--accent)">Подключение... 📡</span>';
             }
-            myId.innerHTML = `${this.myId} <br> <span style="font-size:10px; opacity:0.8;">${statusText}</span>`;
+            myId.innerHTML = `${this.myId} <br> <span style="font-size:10px; cursor:pointer;" onclick="app.reconnect()">${statusText}</span>`;
         }
         const avatar = document.getElementById('myAvatarDisplay');
         if (avatar) {
@@ -860,6 +860,7 @@ const app = {
                 this.contacts[conn.peer].color = data.color || '#555';
 
                 if (data.pubKey) {
+                    this.peerPublicKeys[conn.peer] = data.pubKey;
                     const peerPub = await this.importPublicKey(data.pubKey);
                     this.sessionSecrets[conn.peer] = await this.deriveSharedSecret(peerPub);
                     if (this.activeChatId === conn.peer) this.updateChatHeader();
@@ -1196,9 +1197,15 @@ const app = {
     },
 
     reconnect() {
+        if (this.peer && this.peer.disconnected) {
+            this.peer.reconnect();
+        } else if (!this.peer || this.peer.destroyed) {
+            this.start();
+        }
+
         Object.keys(this.contacts).forEach(id => {
-            if (!this.connections[id]) {
-                const conn = this.peer.connect(id);
+            if (!this.connections[id] || !this.connections[id].open) {
+                const conn = this.peer.connect(id, { reliable: true });
                 this.handleConnection(conn);
             }
         });
