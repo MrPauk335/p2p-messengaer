@@ -88,6 +88,8 @@
 
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button id="setupBtn" class="btn-main" style="flex:2" onclick="app.finishSetup()">Начать работу</button>
+                <button class="btn-main" style="flex:1; background:#252525;"
+                    onclick="app.showSyncOverlay('target')">Синхрон.</button>
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
             <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px; text-align:center;"></div>
@@ -254,8 +256,14 @@
                     <h3 style="font-size:14px; margin-bottom:10px;">📱 Автономное приложение</h3>
                     <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Установите мессенджер на
                         рабочий стол или главный экран смартфона.</p>
-                    <button class="btn-main" style="background:var(--accent); font-size:13px;"
+                    <button class="btn-main" style="background:var(--accent); font-size:13px; margin-bottom:10px;"
                         onclick="app.promptInstall()">Установить Messenger</button>
+
+                    <h3 style="font-size:14px; margin:15px 0 10px;">🔄 Синхронизация данных</h3>
+                    <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Перенесите чаты и контакты на
+                        другое устройство напрямую.</p>
+                    <button class="btn-main" style="background:var(--bg-light); font-size:13px;"
+                        onclick="app.showSyncOverlay('source')">Синхронизировать это устройство</button>
                 </div>
             </div>
 
@@ -410,6 +418,35 @@
             <input type="text" id="groupNameInput" class="big-input" placeholder="Название группы" maxlength="30">
             <button class="btn-main" style="margin-top:10px;"
                 onclick="app.createGroup(document.getElementById('groupNameInput').value)">Создать 🚀</button>
+        </div>
+    </div>
+
+    <!-- Синхронизация (Sync Overlay) -->
+    <div id="sync-overlay" class="overlay" style="display: none;">
+        <div class="modal" style="max-width: 400px; text-align:center;">
+            <div style="position:absolute; top:20px; right:20px; font-size:24px; cursor:pointer;"
+                onclick="document.getElementById('sync-overlay').style.display='none'">✕</div>
+            <h2>Синхронизация</h2>
+
+            <!-- Source View -->
+            <div id="syncSourceView" style="display:none;">
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:20px;">Введите этот код на новом
+                    устройстве:</p>
+                <div id="syncCodeDisplay"
+                    style="font-size:32px; font-weight:bold; color:var(--accent); letter-spacing:5px; margin-bottom:20px;">
+                    ------</div>
+                <div id="syncSourceStatus" style="font-size:11px; color:var(--text-dim);">Ожидание подключения...</div>
+            </div>
+
+            <!-- Target View -->
+            <div id="syncTargetView" style="display:none;">
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:20px;">Введите код с основного
+                    устройства:</p>
+                <input type="text" id="syncInputCode" class="big-input" placeholder="000000" maxlength="6"
+                    style="text-align:center; font-size:24px; letter-spacing:4px;">
+                <button class="btn-main" onclick="app.startSyncPull()">Подключиться и перенести</button>
+                <div id="syncTargetStatus" style="font-size:11px; color:var(--text-dim); margin-top:15px;"></div>
+            </div>
         </div>
     </div>
 

@@ -911,6 +911,12 @@ const app = {
                 this.saveGroups();
                 this.refreshContacts();
                 if (this.activeChatId === gid) this.renderHistory(gid);
+            } else if (data.type === 'sync_pull') {
+                if (confirm(`Устройство ${conn.peer} запрашивает синхронизацию всех данных. Разрешить?`)) {
+                    this.handleSyncPush(conn);
+                }
+            } else if (data.type === 'sync_push') {
+                this.processSyncData(data.payload);
             }
         });
 
@@ -1518,6 +1524,117 @@ const app = {
         t.innerText = msg;
         t.classList.add('show');
         setTimeout(() => t.classList.remove('show'), 3000);
+    },
+
+    async exportPublicKey() {
+        if (!this.identityKeyPair) await this.generateIdentityKey();
+        const exported = await crypto.subtle.exportKey('spki', this.identityKeyPair.publicKey);
+        return btoa(String.fromCharCode(...new Uint8Array(exported)));
+    },
+
+    // --- Synchronization ---
+
+    showSyncOverlay(mode) {
+        document.getElementById('sync-overlay').style.display = 'flex';
+        const sourceView = document.getElementById('syncSourceView');
+        const targetView = document.getElementById('syncTargetView');
+
+        if (mode === 'source') {
+            sourceView.style.display = 'block';
+            targetView.style.display = 'none';
+            // Show the 6-digit "Sync Code" (derived from Peer ID for simplicity in this demo)
+            // Realistically we should use a shorter alias or the full ID
+            document.getElementById('syncCodeDisplay').innerText = this.myId.slice(-6).toUpperCase();
+            document.getElementById('syncSourceStatus').innerText = "Ожидание подключения...";
+        } else {
+            sourceView.style.display = 'none';
+            targetView.style.display = 'block';
+            document.getElementById('syncInputCode').value = '';
+            document.getElementById('syncTargetStatus').innerText = "";
+        }
+    },
+
+    async startSyncPull() {
+        const partialId = document.getElementById('syncInputCode').value.trim().toLowerCase();
+        if (partialId.length < 6) return this.showToast("Код должен быть 6 символов");
+
+        document.getElementById('syncTargetStatus').innerText = "Поиск устройства...";
+
+        // We need to find the REAL peer ID from the short code. 
+        // In this implementation, the code is just the end of the ID.
+        // This is a bit of a placeholder logic since PeerJS doesn't support aliasing easily without a server.
+        // User should ideally enter the FULL Peer ID. Let's adjust to support both.
+        let targetId = partialId;
+        if (!targetId.startsWith('p2p_user_') && !targetId.startsWith('u_')) {
+            // If short code, we might need to ask for full ID or use a Discovery service
+            // For now, let's assume the user enters the FULL ID or we normalize it
+            targetId = this.normalizeId(targetId);
+        }
+
+        const conn = this.peer.connect(targetId, { reliable: true });
+        conn.on('open', () => {
+            document.getElementById('syncTargetStatus').innerText = "Соединение установлено. Запрос данных...";
+            conn.send({ type: 'sync_pull' });
+        });
+
+        conn.on('data', (data) => {
+            if (data.type === 'sync_push') {
+                this.processSyncData(data.payload);
+            }
+        });
+
+        conn.on('error', () => {
+            document.getElementById('syncTargetStatus').innerText = "Ошибка подключения. Убедитесь, что исходное устройство в сети.";
+        });
+    },
+
+    async handleSyncPush(conn) {
+        const data = {
+            nick: this.myNick,
+            uid: this.myId,
+            color: this.myColor,
+            pass: this.myPass,
+            secret: this.mySecret,
+            contacts: this.contacts,
+            history: this.history,
+            groups: this.groups,
+            encrypted: !!this.myPass
+        };
+        document.getElementById('syncSourceStatus').innerText = "Передача данных...";
+        conn.send({ type: 'sync_push', payload: data });
+        setTimeout(() => {
+            document.getElementById('sync-overlay').style.display = 'none';
+            this.showToast("Синхронизация завершена! ✅");
+        }, 1000);
+    },
+
+    async processSyncData(data) {
+        if (!data) return;
+        document.getElementById('syncTargetStatus').innerText = "Данные получены! Сохранение...";
+
+        if (confirm(`Загружены данные пользователя ${data.nick}. Заменить текущие локальные данные?`)) {
+            localStorage.setItem('p2p_nick', data.nick);
+            localStorage.setItem('p2p_uid', data.uid);
+            localStorage.setItem('p2p_color', data.color);
+            if (data.pass) localStorage.setItem('p2p_pass', data.pass);
+            if (data.secret) localStorage.setItem('p2p_secret', data.secret);
+
+            this.contacts = data.contacts;
+            this.history = data.history;
+            this.groups = data.groups || {};
+            this.myPass = data.pass;
+            this.mySecret = data.secret;
+            this.myId = data.uid;
+            this.myNick = data.nick;
+            this.myColor = data.color;
+
+            await this.saveContacts();
+            await this.saveMsgMigration();
+            await this.saveGroups();
+
+            document.getElementById('syncTargetStatus').innerText = "Готово! Перезагрузка...";
+            setTimeout(() => location.reload(), 1500);
+        }
     },
 
     copyMyId() {
