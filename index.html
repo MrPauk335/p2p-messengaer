@@ -299,8 +299,8 @@
 
         <div class="search-container" style="display:flex; gap:10px; align-items:center;">
             <input type="text" id="contactSearch" placeholder="Поиск или ввод ID..."
-                onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1" autocomplete="off"
-                spellcheck="false" oninput="app.refreshContacts()">
+                onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1" autocomplete="one-time-code"
+                spellcheck="false" oninput="app.refreshContacts()" name="p2p_search_field">
             <div class="btn-settings" onclick="document.getElementById('group-create-overlay').style.display='flex'"
                 title="Создать группу" style="margin:0; font-size:18px;">👥</div>
         </div>
