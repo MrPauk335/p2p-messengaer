@@ -675,7 +675,7 @@
                     } else {
                         localStorage.setItem('p2p_last_ip', currentIp);
                         this.lastIp = currentIp;
-                        this.checkSecurity();
+                        this.start(); // Пропускаем пароль, если IP совпадает
                     }
                 } catch (e) {
                     console.warn("IP check failed, skipping for privacy/connectivity reasons");
