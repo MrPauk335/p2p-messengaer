@@ -299,7 +299,8 @@
 
         <div class="search-container" style="display:flex; gap:10px; align-items:center;">
             <input type="text" id="contactSearch" placeholder="Поиск или ввод ID..."
-                onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1">
+                onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1" autocomplete="off"
+                spellcheck="false" oninput="app.refreshContacts()">
             <div class="btn-settings" onclick="document.getElementById('group-create-overlay').style.display='flex'"
                 title="Создать группу" style="margin:0; font-size:18px;">👥</div>
         </div>
@@ -325,10 +326,19 @@
                 onclick="app.showSafetyInfo()">
                 <span id="fingerprintValue"></span>
             </div>
+            <div id="membersToggle" class="btn-settings" style="display:none; font-size:18px;"
+                onclick="app.toggleMembersList()" title="Участники">👥</div>
         </div>
 
-        <div id="messages">
-            <div class="sys-msg" style="margin-top:auto;">Начните общение, выбрав контакт или добавив по ID</div>
+        <div class="chat-main">
+            <div id="messages">
+                <div class="sys-msg" style="margin-top:auto;">Начните общение, выбрав контакт или добавив по ID</div>
+            </div>
+
+            <div class="members-sidebar" id="membersSidebar" style="display:none;">
+                <h4>Участники</h4>
+                <div id="membersList"></div>
+            </div>
         </div>
 
         <div class="input-bar">

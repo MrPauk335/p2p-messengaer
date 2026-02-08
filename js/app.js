@@ -934,6 +934,13 @@ const app = {
         this.activeChatId = id;
         this.updateChatHeader();
 
+        // Clear search on selection to prevent "disappearing chats" bug
+        const searchInput = document.getElementById('contactSearch');
+        if (searchInput && searchInput.value) {
+            searchInput.value = '';
+            this.refreshContacts();
+        }
+
         document.getElementById('msgInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
         document.getElementById('msgInput').focus();
@@ -979,8 +986,12 @@ const app = {
 
         if (isGroup) {
             document.getElementById('chatStatus').innerHTML = `👥 ${data.members.length} участников <span style="color:var(--accent); cursor:pointer; margin-left:10px;" onclick="app.tryAddGroupMember()" title="Пригласить участника">➕ Добавить</span>`;
+            document.getElementById('membersToggle').style.display = 'flex';
+            this.updateMembersList(id);
         } else {
             document.getElementById('chatStatus').innerText = this.connections[id] ? 'В сети' : 'Не в сети';
+            document.getElementById('membersToggle').style.display = 'none';
+            document.getElementById('membersSidebar').style.display = 'none';
         }
 
         const av = document.getElementById('chatAvatar');
@@ -996,6 +1007,33 @@ const app = {
                 });
             }
         }
+    },
+
+    toggleMembersList() {
+        const sidebar = document.getElementById('membersSidebar');
+        sidebar.style.display = sidebar.style.display === 'none' ? 'flex' : 'none';
+    },
+
+    updateMembersList(gid) {
+        const group = this.groups[gid];
+        const list = document.getElementById('membersList');
+        if (!group || !list) return;
+        list.innerHTML = '';
+
+        group.members.forEach(mid => {
+            const isMe = mid === this.myId;
+            const nick = isMe ? this.myNick : (this.contacts[mid]?.name || 'Unknown');
+            const color = isMe ? this.myColor : (this.contacts[mid]?.color || '#888');
+            const avatar = nick.charAt(0).toUpperCase();
+
+            const el = document.createElement('div');
+            el.className = 'member-item';
+            el.innerHTML = `
+                <div class="avatar" style="width:28px; height:28px; font-size:12px; background:${color}">${avatar}</div>
+                <div style="font-size:13px; color:#eee;">${this.esc(nick)} ${isMe ? '<small style="opacity:0.5">(Вы)</small>' : ''}</div>
+            `;
+            list.appendChild(el);
+        });
     },
 
     tryAddGroupMember() {
