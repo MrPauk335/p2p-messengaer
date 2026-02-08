@@ -450,7 +450,17 @@ const app = {
         this.updateMyProfileUI();
 
         this.peer = new Peer(this.myId, {
-            config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' }
+                ]
+            },
+            debug: 1
         });
 
         this.peer.on('open', (id) => {
@@ -574,6 +584,9 @@ const app = {
 
         conn.on('data', (data) => {
             if (data.type === 'handshake') {
+                if (!this.contacts[conn.peer]) {
+                    this.addContact(conn.peer, data.nick, data.color || '#555');
+                }
                 this.contacts[conn.peer].name = data.nick;
                 this.contacts[conn.peer].color = data.color || '#555';
                 this.saveContacts();
@@ -582,6 +595,12 @@ const app = {
             } else if (data.type === 'msg') {
                 this.saveMsg(conn.peer, data.text, 'them');
             }
+        });
+
+        conn.on('error', (err) => {
+            console.error('Connection error:', err);
+            this.updateOnlineStatus(conn.peer, false);
+            delete this.connections[conn.peer];
         });
 
         conn.on('close', () => {
@@ -634,8 +653,9 @@ const app = {
         this.renderHistory(id);
         this.refreshContacts();
 
-        if (!this.connections[id]) {
-            const conn = this.peer.connect(id);
+        if (!this.connections[id] || !this.connections[id].open) {
+            console.log('Connecting to:', id);
+            const conn = this.peer.connect(id, { reliable: true });
             this.handleConnection(conn);
         }
     },
