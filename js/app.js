@@ -22,6 +22,8 @@ const app = {
     deferredPrompt: null,
     currentContext: 'home', // 'home' or gid
     isElectron: (window.process && window.process.type) || navigator.userAgent.toLowerCase().includes('electron'),
+    myDevices: JSON.parse(localStorage.getItem('p2p_my_devices') || '[]'),
+    deviceSuffix: Math.random().toString(36).substring(2, 6), // Unique for this session
 
     normalizeId(id) {
         if (!id) return '';
@@ -623,7 +625,11 @@ const app = {
     start() {
         this.updateMyProfileUI();
 
-        this.peer = new Peer(this.myId, {
+        // Use a unique connection ID (Base ID + Suffix) to allow multiple devices for same user
+        const connectionId = `${this.myId}_dev_${this.deviceSuffix}`;
+        console.log('Connecting with ID:', connectionId);
+
+        this.peer = new Peer(connectionId, {
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
@@ -659,6 +665,9 @@ const app = {
             this.updateMyProfileUI(); // Update to show "Online"
             this.checkHash();
             this.reconnect();
+
+            // Try to discover my other devices
+            this.discoverMyDevices();
         });
 
         this.peer.on('connection', (conn) => this.handleConnection(conn));
@@ -910,7 +919,8 @@ const app = {
                 }
                 if (text) {
                     const chatId = data.gid || conn.peer;
-                    this.saveMsg(chatId, text, 'them', conn.peer);
+                    this.saveMsg(chatId, text, 'them', conn.peer, true);
+                    if (!data.isRelay) this.relayToMyDevices({ ...data, isRelay: true });
                 }
             } else if (data.type === 'group_sync') {
                 // Incoming group info from an invite or update
@@ -924,7 +934,18 @@ const app = {
                     this.handleSyncPush(conn);
                 }
             } else if (data.type === 'sync_push') {
+                this.addTrustedDevice(conn.peer); // Trust the device after manual sync
                 this.processSyncData(data.payload);
+            } else if (data.type === 'auto_sync') {
+                console.log('Received background auto-sync update');
+                if (data.contacts) this.contacts = data.contacts;
+                if (data.groups) this.groups = data.groups;
+                if (data.history) this.history = data.history;
+                this.saveContacts(true); // silent=true to prevent loop
+                this.saveGroups(true);
+                this.saveMsgMigration(true);
+                this.refreshContacts();
+                if (this.activeChatId) this.renderHistory(this.activeChatId);
             }
         });
 
@@ -1249,7 +1270,7 @@ const app = {
         input.value = '';
     },
 
-    async saveMsg(id, text, side, senderId = null) {
+    async saveMsg(id, text, side, senderId = null, silent = false) {
         if (!senderId) senderId = (side === 'me' ? this.myId : id);
 
         if (this.incognitoMode) {
@@ -1262,15 +1283,16 @@ const app = {
         const time = new Date().toLocaleTimeString().slice(0, 5);
         this.history[id].push({ text, side, time, senderId });
 
-        const encrypted = await this.encrypt(this.history);
-        localStorage.setItem('p2p_history_enc', encrypted);
+        await this.saveMsgMigration(silent);
 
         if (this.activeChatId === id) {
             this.appendBubble(text, side, time, senderId);
         }
-        this.contacts[id].last = (side === 'me' ? 'Вы: ' : '') + text;
-        this.saveContacts();
-        this.refreshContacts();
+        if (this.contacts[id]) {
+            this.contacts[id].last = (side === 'me' ? 'Вы: ' : '') + text;
+            this.saveContacts(silent);
+            this.refreshContacts();
+        }
 
         this.handleBurnEffect(id, text, side);
     },
@@ -1386,22 +1408,24 @@ const app = {
         this.refreshContacts();
     },
 
-    async saveContacts() {
+    async saveContacts(silent = false) {
         if (this.myPass) {
             const encrypted = await this.encrypt(this.contacts);
             localStorage.setItem('p2p_contacts_enc', encrypted);
         } else {
             localStorage.setItem('p2p_contacts', JSON.stringify(this.contacts));
         }
+        if (!silent) this.broadcastSync();
     },
 
-    async saveGroups() {
+    async saveGroups(silent = false) {
         if (this.myPass) {
             const encrypted = await this.encrypt(this.groups);
             localStorage.setItem('p2p_groups_enc', encrypted);
         } else {
             localStorage.setItem('p2p_groups', JSON.stringify(this.groups));
         }
+        if (!silent) this.broadcastSync();
     },
 
     isGroup(id) {
@@ -1474,9 +1498,10 @@ const app = {
         }
     },
 
-    async saveMsgMigration() {
+    async saveMsgMigration(silent = false) {
         const encrypted = await this.encrypt(this.history);
         localStorage.setItem('p2p_history_enc', encrypted);
+        if (!silent) this.broadcastSync();
     },
 
     updateEncryptionStatus() {
@@ -1549,6 +1574,55 @@ const app = {
     },
 
     // --- Synchronization ---
+
+    discoverMyDevices() {
+        if (!this.myDevices.length) return;
+        console.log('Discovering trusted devices...', this.myDevices);
+
+        this.myDevices.forEach(id => {
+            if (id === this.myId) return; // Legacy/redundant
+
+            // We don't know the exact suffix of other devices, so we would need a relay or 
+            // a known suffix pattern. For simplicity: let's assume we store the FULL connection IDs 
+            // of trusted devices after the first manual sync.
+            if (!this.connections[id] || !this.connections[id].open) {
+                const conn = this.peer.connect(id, { reliable: true });
+                this.handleConnection(conn);
+            }
+        });
+    },
+
+    async broadcastSync() {
+        if (!this.myDevices.length) return;
+        const payload = {
+            type: 'auto_sync',
+            contacts: this.contacts,
+            groups: this.groups,
+            history: this.history
+        };
+
+        Object.keys(this.connections).forEach(id => {
+            if (this.myDevices.includes(id)) {
+                this.connections[id].send(payload);
+            }
+        });
+    },
+
+    addTrustedDevice(fullId) {
+        if (!this.myDevices.includes(fullId)) {
+            this.myDevices.push(fullId);
+            localStorage.setItem('p2p_my_devices', JSON.stringify(this.myDevices));
+            console.log('Device trusted:', fullId);
+        }
+    },
+
+    relayToMyDevices(payload) {
+        Object.keys(this.connections).forEach(id => {
+            if (this.myDevices.includes(id)) {
+                this.connections[id].send(payload);
+            }
+        });
+    },
 
     showSyncOverlay(mode) {
         document.getElementById('sync-overlay').style.display = 'flex';

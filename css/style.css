@@ -398,7 +398,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #1a1b1e;
+    background: #444;
     border-radius: 4px;
 }
 
@@ -432,6 +432,8 @@ body {
     position: relative;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
     overflow-y: auto;
+    padding-bottom: 40px;
+    /* Spacer for last items */
 }
 
 .big-input {
