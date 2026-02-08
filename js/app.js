@@ -503,6 +503,79 @@ const app = {
         document.getElementById('editName').value = this.myNick;
     },
 
+    openSettings() {
+        if (window.innerWidth <= 768) {
+            this.toggleSidebar(); // Hide sidebar on mobile to avoid overlap
+        }
+        document.getElementById('settings-overlay').style.display = 'flex';
+        document.getElementById('settingIpCheck').checked = this.ipCheck;
+        document.getElementById('settingTgEnabled').checked = this.tgEnabled;
+        this.updateTgSettingsUI();
+    },
+
+    toggleIpCheck(enabled) {
+        this.ipCheck = enabled;
+        localStorage.setItem('p2p_ip_check', enabled);
+        this.showToast(enabled ? 'Проверка по IP включена 🛡️' : 'Проверка по IP выключена 🔓');
+    },
+
+    toggleTg(enabled) {
+        this.tgEnabled = enabled;
+        localStorage.setItem('p2p_tg_enabled', enabled);
+        this.updateTgSettingsUI();
+        if (enabled) {
+            this.startTgPolling();
+            this.showToast('Telegram 2FA включен 🤖');
+        }
+    },
+
+    async startTgPairing() {
+        const pairingCode = Math.floor(100000 + Math.random() * 900000).toString();
+        this.pairingCode = pairingCode;
+        this.isPairing = true;
+
+        document.getElementById('tgPairingCodeDisplay').innerText = pairingCode.split('').join(' ');
+        document.getElementById('tgPairingCodeDisplay').style.display = 'block';
+        document.getElementById('tgPairBtn').style.display = 'none';
+        document.getElementById('tgPairingStatus').innerText = "Отправьте этот код боту @p2p2fabot";
+
+        if (!this.tgLoginActive) {
+            this.tgLoginActive = true;
+            this.pollTgCommands();
+        }
+    },
+
+    unlinkTg() {
+        if (confirm("Отключить Telegram?")) {
+            this.tgEnabled = false;
+            this.tgChatId = '';
+            localStorage.removeItem('p2p_tg_enabled');
+            localStorage.removeItem('p2p_tg_chatid');
+            this.updateTgSettingsUI();
+            this.showToast('Telegram отключен 🚫');
+        }
+    },
+
+    updateTgSettingsUI() {
+        const container = document.getElementById('tgSettings');
+        container.style.display = this.tgEnabled ? 'block' : 'none';
+
+        const pairing = document.getElementById('tgPairingContainer');
+        const linked = document.getElementById('tgLinkedContainer');
+
+        if (this.tgChatId) {
+            pairing.style.display = 'none';
+            linked.style.display = 'block';
+            document.getElementById('tgChatIdLabel').innerText = this.tgChatId;
+        } else {
+            pairing.style.display = 'block';
+            linked.style.display = 'none';
+            document.getElementById('tgPairingCodeDisplay').style.display = 'none';
+            document.getElementById('tgPairBtn').style.display = 'block';
+            document.getElementById('tgPairingStatus').innerText = "Привяжите аккаунт, чтобы получать 2FA и команды (/logout).";
+        }
+    },
+
     updateProfile() {
         const newName = document.getElementById('editName').value.trim();
         const oldPassInput = document.getElementById('oldPass').value;
