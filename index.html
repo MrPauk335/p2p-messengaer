@@ -10,6 +10,10 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 
 <body>
@@ -244,6 +248,15 @@
                         <option value="3600">1 час</option>
                     </select>
                 </div>
+
+                <div id="p2pInstallContainer"
+                    style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                    <h3 style="font-size:14px; margin-bottom:10px;">📱 Автономное приложение</h3>
+                    <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Установите мессенджер на
+                        рабочий стол или главный экран смартфона.</p>
+                    <button class="btn-main" style="background:var(--accent); font-size:13px;"
+                        onclick="app.promptInstall()">Установить Messenger</button>
+                </div>
             </div>
 
             <div style="display:flex; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
@@ -369,6 +382,15 @@
     </div>
 
     <script src="js/app.js" defer></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
+            });
+        }
+    </script>
 </body>
 
 </html>

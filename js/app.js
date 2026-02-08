@@ -19,6 +19,7 @@ const app = {
     tempSecret: null,
     tgLoginActive: false,
     tempChatId: '',
+    deferredPrompt: null,
 
     normalizeId(id) {
         if (!id) return '';
@@ -178,6 +179,28 @@ const app = {
                 this.updateOnlineStatus(this.activeChatId, !!isOnline);
             }
         }, 3000);
+        this.initPWA();
+    },
+
+    initPWA() {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            console.log('PWA Prompt deferred');
+        });
+    },
+
+    async promptInstall() {
+        if (!this.deferredPrompt) {
+            this.showToast('Уже установлено или пока недоступно 📱');
+            return;
+        }
+        this.deferredPrompt.prompt();
+        const { outcome } = await this.deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            console.log('User installed PWA');
+        }
+        this.deferredPrompt = null;
     },
 
     genSecret() {

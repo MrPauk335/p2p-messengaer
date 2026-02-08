@@ -1,0 +1,17 @@
+{
+    "name": "P2P Messenger",
+    "short_name": "Messengaer",
+    "description": "Private, serverless P2P communication based on PeerJS.",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#0084ff",
+    "icons": [
+        {
+            "src": "messenger_app_icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
