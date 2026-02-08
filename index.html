@@ -711,11 +711,14 @@
             history: JSON.parse(localStorage.getItem('p2p_history') || '{}'),
             connections: {},
             activeChatId: null,
-            setupMode: 'reg', // 'reg' or 'login'
+            setupMode: 'reg',
             ipCheck: localStorage.getItem('p2p_ip_check') !== 'false',
             tgEnabled: localStorage.getItem('p2p_tg_enabled') === 'true',
-            tgToken: '8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4', // Hardcoded @p2p2fabot
+            tgToken: '8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4',
             tgChatId: localStorage.getItem('p2p_tg_chatid') || '',
+            tempSecret: null,
+            pairingCode: null,
+            isPairing: false,
 
             init() {
                 // Инициализация палитры в сетапе
@@ -735,6 +738,11 @@
                 }
 
                 window.addEventListener('hashchange', () => this.checkHash());
+            },
+
+            genSecret() {
+                this.tempSecret = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                    .map(b => b.toString(16).padStart(2, '0')).join('');
             },
 
             setSetupMode(mode) {
