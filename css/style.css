@@ -378,7 +378,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(4px);
     animation: fadeIn 0.3s ease;
 }
 

@@ -24,6 +24,13 @@ const app = {
     tempChatId: '',
 
     init() {
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                document.getElementById('sidebar-backdrop').style.display = 'none';
+                document.getElementById('sidebar').classList.remove('hidden');
+            }
+        });
+
         // Инициализация палитры в сетапе
         document.querySelectorAll('.color-dot').forEach(dot => {
             dot.onclick = () => {
@@ -932,6 +939,8 @@ const app = {
             const isHidden = sb.classList.toggle('hidden');
             if (window.innerWidth <= 768) {
                 backdrop.style.display = isHidden ? 'none' : 'block';
+            } else {
+                backdrop.style.display = 'none';
             }
         }
     },
