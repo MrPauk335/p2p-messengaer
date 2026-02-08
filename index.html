@@ -298,9 +298,14 @@
         </div>
 
         <div class="search-container" style="display:flex; gap:10px; align-items:center;">
+            <!-- Dummy field to trick Chrome's autofill -->
+            <input type="text" style="display:none;" tabindex="-1">
+            <input type="password" style="display:none;" tabindex="-1">
+
             <input type="text" id="contactSearch" placeholder="Поиск или ввод ID..."
-                onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1" autocomplete="one-time-code"
-                spellcheck="false" oninput="app.refreshContacts()" name="p2p_search_field">
+                onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1" autocomplete="new-password"
+                spellcheck="false" oninput="app.refreshContacts()" name="p2p_search_v3" readonly
+                onfocus="this.removeAttribute('readonly')">
             <div class="btn-settings" onclick="document.getElementById('group-create-overlay').style.display='flex'"
                 title="Создать группу" style="margin:0; font-size:18px;">👥</div>
         </div>
