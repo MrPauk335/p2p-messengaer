@@ -18,6 +18,13 @@ const app = {
     tempSecret: null,
     tgLoginActive: false,
     tempChatId: '',
+
+    normalizeId(id) {
+        if (!id) return '';
+        const prefix = id.startsWith('u_') ? 'u_' : 'p2p_user_';
+        const clean = id.replace('p2p_user_', '').replace('u_', '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return prefix + clean;
+    },
     dbKey: null, // Derived key for local encryption
     identityKeyPair: null, // ECDH KeyPair
     sessionSecrets: {}, // Shared secrets for active chats
@@ -142,6 +149,15 @@ const app = {
             });
         }
         window.addEventListener('hashchange', () => this.checkHash());
+
+        // Heartbeat for status
+        setInterval(() => {
+            if (this.activeChatId) {
+                const conn = this.connections[this.activeChatId];
+                const isOnline = conn && conn.open;
+                this.updateOnlineStatus(this.activeChatId, !!isOnline);
+            }
+        }, 3000);
     },
 
     genSecret() {
@@ -490,7 +506,7 @@ const app = {
         document.getElementById('setupBtn').innerText = this.setupMode === 'reg' ? "Проверка имени..." : "Вход...";
         document.getElementById('setupBtn').disabled = true;
 
-        const testPeerId = `p2p_user_${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        const testPeerId = this.normalizeId(name);
 
         if (this.setupMode === 'reg') {
             const isTaken = await this.checkIdTaken(testPeerId);
@@ -579,7 +595,8 @@ const app = {
                         username: 'openrelayproject',
                         credential: 'openrelayproject'
                     }
-                ]
+                ],
+                iceCandidatePoolSize: 10
             },
             debug: 1
         });
@@ -592,12 +609,18 @@ const app = {
 
         this.peer.on('connection', (conn) => this.handleConnection(conn));
         this.peer.on('error', (err) => {
+            console.error("Peer Error:", err.type, err);
+            const status = document.getElementById('chatStatus');
+            const myIdDisplay = document.getElementById('myIdDisplay');
+
             if (err.type === 'unavailable-id') {
                 this.showToast('Ошибка: Этот никнейм уже используется на другом устройстве ⚠️');
-                const status = document.getElementById('chatStatus');
                 if (status) status.innerText = "Конфликт: ID уже в сети";
-                const myIdDisplay = document.getElementById('myIdDisplay');
                 if (myIdDisplay) myIdDisplay.innerText = "Ошибка: ID занят";
+            } else if (err.type === 'peer-unavailable') {
+                if (status && this.activeChatId) status.innerText = "Собеседник оффлайн";
+            } else if (err.type === 'network') {
+                if (status) status.innerHTML = "Ошибка сети <span style='cursor:pointer; text-decoration:underline;' onclick='app.reconnect()'>🔄 Повтор</span>";
             }
         });
 
@@ -837,12 +860,8 @@ const app = {
 
     tryAddFriend() {
         const input = document.getElementById('contactSearch');
-        let id = input.value.trim();
+        let id = this.normalizeId(input.value.trim());
         if (!id) return;
-
-        if (!id.startsWith('p2p_user_') && !id.startsWith('u_')) {
-            id = `p2p_user_${id.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-        }
 
         if (id !== this.myId) {
             if (!this.contacts[id]) {
