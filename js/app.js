@@ -681,6 +681,79 @@ const app = {
         this.refreshContacts();
     },
 
+    // === PRE-LOGIN SYNC (Import profile on new device) ===
+    tempPeer: null,
+
+    startPreLoginSync() {
+        document.getElementById('setup-overlay').style.display = 'none';
+        document.getElementById('sync-overlay').style.display = 'flex';
+        document.getElementById('syncSourceView').style.display = 'none';
+        document.getElementById('syncTargetView').style.display = 'block';
+        document.getElementById('syncInputCode').value = '';
+        document.getElementById('syncTargetStatus').innerText = "Введите Source ID с другого устройства";
+    },
+
+    async initTempPeerForSync() {
+        return new Promise((resolve) => {
+            const tempId = 'sync_temp_' + Math.random().toString(36).substr(2, 8);
+            console.log('[PreLoginSync] Creating temp peer:', tempId);
+
+            const peer = new Peer(tempId, {
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                },
+                debug: 1
+            });
+
+            peer.on('open', () => {
+                console.log('[PreLoginSync] Temp peer ready:', tempId);
+                this.tempPeer = peer;
+                resolve(peer);
+            });
+
+            peer.on('error', (err) => {
+                console.error('[PreLoginSync] Temp peer error:', err);
+                this.logSync("Ошибка: " + err.type);
+                resolve(null);
+            });
+
+            setTimeout(() => {
+                if (!peer.open) {
+                    console.error('[PreLoginSync] Temp peer timeout');
+                    peer.destroy();
+                    resolve(null);
+                }
+            }, 10000);
+        });
+    },
+
+    applyImportedProfile(data) {
+        console.log('[PreLoginSync] Applying imported profile:', data.nick);
+
+        if (data.nick) localStorage.setItem('p2p_nick', data.nick);
+        if (data.uid) localStorage.setItem('p2p_uid', data.uid);
+        if (data.color) localStorage.setItem('p2p_color', data.color);
+        if (data.pass) localStorage.setItem('p2p_pass', data.pass);
+        if (data.secret) localStorage.setItem('p2p_secret', data.secret);
+        if (data.contacts) localStorage.setItem('p2p_contacts', JSON.stringify(data.contacts));
+        if (data.history) localStorage.setItem('p2p_history', JSON.stringify(data.history));
+        if (data.groups) localStorage.setItem('p2p_groups', JSON.stringify(data.groups));
+        if (data.privKey) localStorage.setItem('p2p_priv_key', data.privKey);
+        if (data.pubKey) localStorage.setItem('p2p_pub_key', data.pubKey);
+        if (data.tgBound) localStorage.setItem('p2p_tg_bound', 'true');
+
+        if (this.tempPeer) {
+            this.tempPeer.destroy();
+            this.tempPeer = null;
+        }
+
+        this.showToast("✅ Профиль импортирован! Перезагрузка...");
+        setTimeout(() => location.reload(), 1500);
+    },
+
     updateMyProfileUI() {
         if (!this.myNick) {
             document.getElementById('myNickDisplay').innerText = "Загрузка...";
@@ -1645,13 +1718,24 @@ const app = {
             document.getElementById('syncTargetStatus').innerText = "Запрос затянулся. Попробуйте нажать кнопку ещё раз или проверьте интернет.";
         }, 12000);
 
-        if (targetId === this.myId || (this.peer && targetId === this.peer.id)) {
+        // Use temp peer if this.peer is null (pre-login sync)
+        let activePeer = this.peer;
+        if (!activePeer) {
+            this.logSync("Создание временного соединения...");
+            activePeer = await this.initTempPeerForSync();
+            if (!activePeer) {
+                clearTimeout(timeout);
+                return this.showToast("Не удалось создать соединение ⚠️");
+            }
+        }
+
+        if (targetId === this.myId || targetId === activePeer.id) {
             return this.showToast("Нельзя соединиться с самим собой ⚠️");
         }
 
         // Standard connection with explicit JSON serialization
         this.logSync("Connecting to: " + targetId);
-        const conn = this.peer.connect(targetId, { serialization: 'json' });
+        const conn = activePeer.connect(targetId, { serialization: 'json' });
 
         conn.on('open', () => {
             clearTimeout(timeout);
@@ -1664,7 +1748,12 @@ const app = {
             this.logSync("Data received: " + data.type);
             if (data.type === 'sync_push') {
                 document.getElementById('syncTargetStatus').innerText = "Данные получены, синхронизация...";
-                this.processSyncData(data.payload);
+                // If using temp peer (pre-login), apply as new profile
+                if (this.tempPeer) {
+                    this.applyImportedProfile(data.payload);
+                } else {
+                    this.processSyncData(data.payload);
+                }
             }
         });
 
