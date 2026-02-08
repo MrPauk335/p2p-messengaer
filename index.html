@@ -512,7 +512,7 @@
     <div id="setup-overlay" class="overlay" style="display: none;">
         <div class="modal">
             <h1>Создать профиль</h1>
-            <p>Выберите имя, цвет и (опционально) пароль</p>
+            <p>Выберите имя, цвет и пароль</p>
             <div class="color-picker" id="setupColors">
                 <div class="color-dot active" style="background: #ff4d4d;" data-color="#ff4d4d"></div>
                 <div class="color-dot" style="background: #4dff4d;" data-color="#4dff4d"></div>
@@ -520,10 +520,32 @@
                 <div class="color-dot" style="background: #ffaa00;" data-color="#ffaa00"></div>
                 <div class="color-dot" style="background: #b300ff;" data-color="#b300ff"></div>
             </div>
-            <input type="text" id="setupName" class="big-input" placeholder="Ваше имя" maxlength="20">
-            <input type="password" id="setupPass" class="big-input" placeholder="Пароль (пусто = без пароля)">
-            <button class="btn-main" onclick="app.finishSetup()">Начать работу</button>
+            <input type="text" id="setupName" class="big-input" placeholder="Никнейм (будет уникальным)" maxlength="20">
+            <input type="password" id="setupPass" class="big-input" placeholder="Пароль для входа">
+
+            <div id="setup-secret-box"
+                style="display:none; background:var(--glass); padding:10px; border-radius:8px; margin-top:10px; text-align:left;">
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">⚠️ Ключ Безопасности (сохраните
+                    его!):</p>
+                <code id="setupSecretCode" style="color:var(--accent); font-weight:bold; word-break:break-all;"></code>
+            </div>
+
+            <button id="setupBtn" class="btn-main" onclick="app.finishSetup()">Начать работу</button>
             <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <!-- Проверка IP / Новое место -->
+    <div id="ip-overlay" class="lock-screen" style="display: none;">
+        <div class="avatar"
+            style="width:80px; height:80px; font-size:32px; margin-bottom:20px; background:var(--danger)">🛡️</div>
+        <h2>Новое устройство?</h2>
+        <p style="color:var(--text-dim); margin-bottom:30px; text-align:center; max-width:300px;">Мы заметили вход с
+            нового IP или устройства. Введите ваш <b>Ключ Безопасности</b>.</p>
+        <div style="max-width:300px; width:90%;">
+            <input type="text" id="ipSecretInput" class="big-input" placeholder="Ваш секретный ключ">
+            <button class="btn-main" onclick="app.verifySecret()">Подтвердить</button>
+            <div id="ipError" style="color:var(--danger); font-size:12px; margin-top:10px; text-align:center;"></div>
         </div>
     </div>
 
@@ -614,6 +636,8 @@
             myId: localStorage.getItem('p2p_uid'),
             myNick: localStorage.getItem('p2p_nick'),
             myPass: localStorage.getItem('p2p_pass'),
+            mySecret: localStorage.getItem('p2p_secret'),
+            lastIp: localStorage.getItem('p2p_last_ip'),
             myColor: localStorage.getItem('p2p_color') || '#0084ff',
             contacts: JSON.parse(localStorage.getItem('p2p_contacts') || '{}'),
             history: JSON.parse(localStorage.getItem('p2p_history') || '{}'),
@@ -631,14 +655,55 @@
                 });
 
                 if (!this.myNick) {
+                    this.genSecret();
                     document.getElementById('setup-overlay').style.display = 'flex';
-                } else if (this.myPass) {
+                } else {
+                    this.checkIP();
+                }
+
+                window.addEventListener('hashchange', () => this.checkHash());
+            },
+
+            async checkIP() {
+                try {
+                    const res = await fetch('https://api.ipify.org?format=json');
+                    const data = await res.json();
+                    const currentIp = data.ip;
+
+                    if (this.lastIp && this.lastIp !== currentIp) {
+                        document.getElementById('ip-overlay').style.display = 'flex';
+                    } else {
+                        localStorage.setItem('p2p_last_ip', currentIp);
+                        this.lastIp = currentIp;
+                        this.checkSecurity();
+                    }
+                } catch (e) {
+                    console.warn("IP check failed, skipping for privacy/connectivity reasons");
+                    this.checkSecurity();
+                }
+            },
+
+            checkSecurity() {
+                if (this.myPass) {
                     this.showLock();
                 } else {
                     this.start();
                 }
+            },
 
-                window.addEventListener('hashchange', () => this.checkHash());
+            verifySecret() {
+                const input = document.getElementById('ipSecretInput').value.trim();
+                if (input === this.mySecret) {
+                    document.getElementById('ip-overlay').style.display = 'none';
+                    // Update IP after successful secret verification
+                    fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => {
+                        localStorage.setItem('p2p_last_ip', d.ip);
+                        this.lastIp = d.ip;
+                    });
+                    this.checkSecurity();
+                } else {
+                    document.getElementById('ipError').innerText = "Неверный секретный ключ!";
+                }
             },
 
             showLock() {
@@ -660,26 +725,72 @@
                 }
             },
 
-            finishSetup() {
+            genSecret() {
+                const secret = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                    .map(b => b.toString(16).padStart(2, '0')).join('');
+                this.tempSecret = secret;
+                document.getElementById('setup-secret-box').style.display = 'block';
+                document.getElementById('setupSecretCode').innerText = secret;
+            },
+
+            async finishSetup() {
                 const name = document.getElementById('setupName').value.trim();
+                const pass = document.getElementById('setupPass').value.trim();
+
                 if (name.length < 2) {
-                    document.getElementById('setupError').innerText = "Имя слишком короткое";
-                    return;
+                    return document.getElementById('setupError').innerText = "Слишком короткое имя";
                 }
+                if (!pass) {
+                    return document.getElementById('setupError').innerText = "Пароль обязателен для защиты";
+                }
+
+                document.getElementById('setupBtn').innerText = "Проверка имени...";
+                document.getElementById('setupBtn').disabled = true;
+
+                // Проверка уникальности никнейма
+                const testPeerId = `p2p_user_${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+                const isTaken = await this.checkIdTaken(testPeerId);
+
+                if (isTaken) {
+                    document.getElementById('setupBtn').innerText = "Начать работу";
+                    document.getElementById('setupBtn').disabled = false;
+                    return document.getElementById('setupError').innerText = "Этот никнейм уже занят!";
+                }
+
                 this.myNick = name;
-                this.myId = 'u_' + Math.random().toString(36).substr(2, 9);
-                this.myPass = document.getElementById('setupPass').value.trim() || null;
+                this.myId = testPeerId;
+                this.myPass = pass;
+                this.mySecret = this.tempSecret;
 
                 localStorage.setItem('p2p_nick', this.myNick);
                 localStorage.setItem('p2p_uid', this.myId);
                 localStorage.setItem('p2p_color', this.myColor);
-                if (this.myPass) localStorage.setItem('p2p_pass', this.myPass);
+                localStorage.setItem('p2p_pass', this.myPass);
+                localStorage.setItem('p2p_secret', this.mySecret);
+
+                try {
+                    const res = await fetch('https://api.ipify.org?format=json');
+                    const d = await res.json();
+                    localStorage.setItem('p2p_last_ip', d.ip);
+                } catch (e) { }
 
                 document.getElementById('setup-overlay').style.opacity = '0';
                 setTimeout(() => {
                     document.getElementById('setup-overlay').style.display = 'none';
                     this.start();
                 }, 300);
+            },
+
+            async checkIdTaken(id) {
+                return new Promise((resolve) => {
+                    const p = new Peer(id);
+                    p.on('open', () => { p.destroy(); resolve(false); });
+                    p.on('error', (err) => {
+                        if (err.type === 'unavailable-id') { p.destroy(); resolve(true); }
+                        else { p.destroy(); resolve(false); }
+                    });
+                    setTimeout(() => { if (!p.destroyed) { p.destroy(); resolve(false); } }, 5000);
+                });
             },
 
             start() {
@@ -698,9 +809,7 @@
                 this.peer.on('connection', (conn) => this.handleConnection(conn));
                 this.peer.on('error', (err) => {
                     if (err.type === 'unavailable-id') {
-                        this.myId = 'u_' + Math.random().toString(36).substr(2, 9);
-                        localStorage.setItem('p2p_uid', this.myId);
-                        location.reload();
+                        this.showToast('Ошибка: Этот никнейм уже используется на другом устройстве ⚠️');
                     }
                 });
 
@@ -772,8 +881,15 @@
 
             tryAddFriend() {
                 const input = document.getElementById('contactSearch');
-                const id = input.value.trim();
-                if (id && id.startsWith('u_') && id !== this.myId) {
+                let id = input.value.trim();
+                if (!id) return;
+
+                // Если ввели просто ник, превращаем его в ID
+                if (!id.startsWith('p2p_user_') && !id.startsWith('u_')) {
+                    id = `p2p_user_${id.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+                }
+
+                if (id !== this.myId) {
                     if (!this.contacts[id]) {
                         this.addContact(id, 'Поиск...', '#555');
                     }
@@ -952,7 +1068,10 @@
 
             checkHash() {
                 const hash = window.location.hash.replace('#', '');
-                if (hash && hash.startsWith('u_') && hash !== this.myId) {
+                const isLegacy = hash.startsWith('u_');
+                const isNew = hash.startsWith('p2p_user_');
+
+                if (hash && (isLegacy || isNew) && hash !== this.myId) {
                     if (!this.contacts[hash]) this.addContact(hash, 'Загрузка...', '#555');
                     this.selectChat(hash);
                     history.replaceState(null, null, ' ');
