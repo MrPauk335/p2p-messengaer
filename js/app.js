@@ -164,22 +164,23 @@ const app = {
     },
 
     async checkIP() {
-        try {
-            if (!this.ipCheck) return this.start();
+        if (!this.ipCheck) return this.checkSecurity();
 
-            const res = await fetch('https://api.ipify.org?format=json');
+        try {
+            const res = await fetch('https://api.ipify.org?format=json', { timeout: 5000 });
             const data = await res.json();
             const currentIp = data.ip;
 
             if (this.lastIp && this.lastIp !== currentIp) {
                 document.getElementById('ip-overlay').style.display = 'flex';
+                // Wait for verifySecret to call checkSecurity
             } else {
                 localStorage.setItem('p2p_last_ip', currentIp);
                 this.lastIp = currentIp;
-                this.start(); // Пропускаем пароль, если IP совпадает
+                this.start(); // Auto-unlock if IP matches
             }
         } catch (e) {
-            console.warn("IP check failed, skipping for privacy/connectivity reasons");
+            console.warn("IP check failed, falling back to password");
             this.checkSecurity();
         }
     },
