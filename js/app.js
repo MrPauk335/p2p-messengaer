@@ -9,6 +9,7 @@ const app = {
     contacts: {},
     history: {},
     connections: {},
+    groups: {},
     activeChatId: null,
     setupMode: 'reg',
     ipCheck: localStorage.getItem('p2p_ip_check') !== 'false',
@@ -874,7 +875,18 @@ const app = {
                 if (data.isEncrypted && this.sessionSecrets[conn.peer]) {
                     text = await this.decryptSessionMsg(conn.peer, data.payload, data.iv);
                 }
-                if (text) this.saveMsg(conn.peer, text, 'them');
+                if (text) {
+                    const chatId = data.gid || conn.peer;
+                    const displayMsg = data.gid ? `[${this.contacts[conn.peer]?.name || '?'}] ${text}` : text;
+                    this.saveMsg(chatId, displayMsg, 'them');
+                }
+            } else if (data.type === 'group_sync') {
+                // Incoming group info from an invite or update
+                const gid = data.group.id;
+                this.groups[gid] = data.group;
+                this.saveGroups();
+                this.refreshContacts();
+                if (this.activeChatId === gid) this.renderHistory(gid);
             }
         });
 
@@ -935,7 +947,14 @@ const app = {
         this.renderHistory(id);
         this.refreshContacts();
 
-        if (this.peer && (!this.connections[id] || !this.connections[id].open)) {
+        if (this.isGroup(id)) {
+            this.groups[id].members.forEach(memberId => {
+                if (memberId !== this.myId && (!this.connections[memberId] || !this.connections[memberId].open)) {
+                    const conn = this.peer.connect(memberId, { reliable: true });
+                    this.handleConnection(conn);
+                }
+            });
+        } else if (this.peer && (!this.connections[id] || !this.connections[id].open)) {
             console.log('Connecting to:', id);
             const conn = this.peer.connect(id, { reliable: true });
             this.handleConnection(conn);
@@ -945,29 +964,77 @@ const app = {
     },
 
     updateChatHeader() {
-        const c = this.contacts[this.activeChatId];
-        if (!c) return;
+        const id = this.activeChatId;
+        const isGroup = this.isGroup(id);
+        const data = isGroup ? this.groups[id] : this.contacts[id];
+        if (!data) return;
 
-        const isE2EE = !!this.sessionSecrets[this.activeChatId];
-        const isVerified = this.contacts[this.activeChatId]?.verified;
-        const warning = this.checkHomograph(c.name) ? ' <span class="warning-badge" title="Внимание! Имя содержит похожие символы разных алфавитов (подделка)">⚠️</span>' : '';
+        const isE2EE = isGroup || !!this.sessionSecrets[id];
+        const isVerified = !isGroup && this.contacts[id]?.verified;
 
         document.getElementById('chatName').innerHTML = `
-                ${this.esc(c.name)} 
-                ${isVerified ? '<span style="color:var(--success); font-size:14px;" title="Личность подтверждена">✅</span>' : ''}
-                ${isE2EE ? '<span title="E2EE Защищено" style="color:var(--success); font-size:14px; margin-left:5px;">🛡️</span>' : ''}
-                ${warning}
-            `;
+            ${this.esc(data.name)} 
+            ${isVerified ? '<span style="color:var(--success); font-size:14px;" title="Личность подтверждена">✅</span>' : ''}
+            ${isE2EE ? '<span title="' + (isGroup ? 'Групповой чат (E2EE)' : 'E2EE Защищено') + '" style="color:var(--success); font-size:14px; margin-left:5px;">🛡️</span>' : ''}
+        `;
 
-        document.getElementById('chatStatus').innerText = this.connections[this.activeChatId] ? 'В сети' : 'Не в сети';
+        if (isGroup) {
+            document.getElementById('chatStatus').innerHTML = `👥 ${data.members.length} участников <span style="color:var(--accent); cursor:pointer; margin-left:10px;" onclick="app.tryAddGroupMember()" title="Пригласить участника">➕ Добавить</span>`;
+        } else {
+            document.getElementById('chatStatus').innerText = this.connections[id] ? 'В сети' : 'Не в сети';
+        }
+
         const av = document.getElementById('chatAvatar');
-        av.innerText = c.name.charAt(0).toUpperCase();
-        av.style.background = c.color;
+        av.innerText = isGroup ? '👥' : data.name.charAt(0).toUpperCase();
+        av.style.background = data.color;
 
         const safety = document.getElementById('chatSafety');
-        safety.style.display = 'flex';
-        this.genFingerprint(this.activeChatId).then(fp => {
-            document.getElementById('fingerprintValue').innerText = fp;
+        if (safety) {
+            safety.style.display = isGroup ? 'none' : 'flex';
+            if (!isGroup) {
+                this.genFingerprint(id).then(fp => {
+                    document.getElementById('fingerprintValue').innerText = fp;
+                });
+            }
+        }
+    },
+
+    tryAddGroupMember() {
+        const id = prompt("Введите ID друга для добавления в группу:");
+        if (id) {
+            const cleanId = this.normalizeId(id);
+            this.addGroupMember(this.activeChatId, cleanId);
+        }
+    },
+
+    async addGroupMember(gid, memberId) {
+        if (!this.groups[gid]) return;
+        if (this.groups[gid].members.includes(memberId)) return this.showToast("Уже в группе!");
+
+        this.groups[gid].members.push(memberId);
+        this.saveGroups();
+        this.refreshContacts();
+        this.updateChatHeader();
+
+        // Send group info to the NEW member
+        const conn = this.peer.connect(memberId, { reliable: true });
+        conn.on('open', () => {
+            conn.send({ type: 'group_sync', group: this.groups[gid] });
+            // Also notify EXISTING members about the new member? 
+            // In a simple mesh, we should broadcast the updated group to everyone currently in the group
+            this.broadcastGroupUpdate(gid);
+        });
+        this.handleConnection(conn);
+    },
+
+    broadcastGroupUpdate(gid) {
+        const group = this.groups[gid];
+        group.members.forEach(mid => {
+            if (mid === this.myId) return;
+            const conn = this.connections[mid];
+            if (conn && conn.open) {
+                conn.send({ type: 'group_sync', group: group });
+            }
         });
     },
 
@@ -1020,10 +1087,10 @@ const app = {
         const badges = document.getElementById('safetyBadges');
         const isE2EE = !!this.sessionSecrets[id];
         badges.innerHTML = `
-                <span class="badge" style="background:${isE2EE ? 'rgba(0, 210, 106, 0.1)' : 'rgba(255, 77, 77, 0.1)'}; color:${isE2EE ? 'var(--success)' : 'var(--danger)'}; padding:5px 10px; border-radius:20px; font-size:11px; margin-right:5px;">
-                    ${isE2EE ? '● Шифрование активно' : '○ Ожидание рукопожатия'}
-                </span>
-            `;
+    < span class="badge" style = "background:${isE2EE ? 'rgba(0, 210, 106, 0.1)' : 'rgba(255, 77, 77, 0.1)'}; color:${isE2EE ? 'var(--success)' : 'var(--danger)'}; padding:5px 10px; border-radius:20px; font-size:11px; margin-right:5px;" >
+        ${isE2EE ? '● Шифрование активно' : '○ Ожидание рукопожатия'}
+                </span >
+    `;
 
         document.getElementById('safety-overlay').style.display = 'flex';
     },
@@ -1044,19 +1111,32 @@ const app = {
         const id = this.activeChatId;
         if (!text || !id) return;
 
-        const conn = this.connections[id];
-        if (conn && conn.open) {
-            if (this.sessionSecrets[id]) {
-                const enc = await this.encryptSessionMsg(id, text);
-                conn.send({ type: 'msg', payload: enc.payload, iv: enc.iv, isEncrypted: true });
-            } else {
-                conn.send({ type: 'msg', text });
-            }
+        if (this.isGroup(id)) {
+            const group = this.groups[id];
+            group.members.forEach(async (memberId) => {
+                if (memberId === this.myId) return;
+                const conn = this.connections[memberId];
+                if (conn && conn.open && this.sessionSecrets[memberId]) {
+                    const enc = await this.encryptSessionMsg(memberId, text);
+                    conn.send({ type: 'msg', payload: enc.payload, iv: enc.iv, isEncrypted: true, gid: id });
+                }
+            });
             this.saveMsg(id, text, 'me');
-            input.value = '';
         } else {
-            this.showToast('Собеседник не в сети 🚫');
+            const conn = this.connections[id];
+            if (conn && conn.open) {
+                if (this.sessionSecrets[id]) {
+                    const enc = await this.encryptSessionMsg(id, text);
+                    conn.send({ type: 'msg', payload: enc.payload, iv: enc.iv, isEncrypted: true });
+                } else {
+                    conn.send({ type: 'msg', text });
+                }
+                this.saveMsg(id, text, 'me');
+            } else {
+                this.showToast('Собеседник не в сети 🚫');
+            }
         }
+        input.value = '';
     },
 
     async saveMsg(id, text, side) {
@@ -1106,7 +1186,7 @@ const app = {
     appendBubble(text, side, time) {
         const box = document.getElementById('messages');
         const div = document.createElement('div');
-        div.className = `msg ${side}`;
+        div.className = `msg ${side} `;
         div.innerHTML = `${this.esc(text)} <time>${time}</time>`;
         box.appendChild(div);
         box.scrollTop = box.scrollHeight;
@@ -1118,6 +1198,27 @@ const app = {
         list.innerHTML = '';
         const search = document.getElementById('contactSearch').value.toLowerCase();
 
+        // Render Groups First
+        Object.keys(this.groups).forEach(gid => {
+            const g = this.groups[gid];
+            if (search && !g.name.toLowerCase().includes(search)) return;
+
+            const active = this.activeChatId === gid ? 'active' : '';
+            const el = document.createElement('div');
+            el.className = `contact ${active} `;
+            el.onclick = () => this.selectChat(gid);
+            el.style.borderLeft = `4px solid ${g.color} `;
+            el.innerHTML = `
+    < div class="avatar" style = "background:${g.color}" >👥</div >
+        <div class="contact-details">
+            <div><b>${this.esc(g.name)}</b></div>
+            <span>${g.members.length} участников</span>
+        </div>
+`;
+            list.appendChild(el);
+        });
+
+        // Render Contacts
         Object.keys(this.contacts).forEach(id => {
             const c = this.contacts[id];
             if (search && !c.name.toLowerCase().includes(search) && !id.toLowerCase().includes(search)) return;
@@ -1126,16 +1227,16 @@ const app = {
             const online = this.connections[id] ? 'online' : '';
 
             const el = document.createElement('div');
-            el.className = `contact ${active}`;
+            el.className = `contact ${active} `;
             el.onclick = () => this.selectChat(id);
             el.innerHTML = `
-                <div class="avatar" style="background:${c.color}">${this.esc(c.name.charAt(0).toUpperCase())}</div>
+    < div class="avatar" style = "background:${c.color}" > ${this.esc(c.name.charAt(0).toUpperCase())}</div >
                 <div class="contact-details">
                     <div>${this.esc(c.name)}</div>
                     <span>${this.esc(c.last || 'Нет сообщений')}</span>
                 </div>
                 <div class="status-dot ${online}"></div>
-            `;
+`;
             list.appendChild(el);
         });
     },
@@ -1148,13 +1249,53 @@ const app = {
     },
 
     async saveContacts() {
-        const encrypted = await this.encrypt(this.contacts);
-        localStorage.setItem('p2p_contacts_enc', encrypted);
+        if (this.myPass) {
+            const encrypted = await this.encrypt(this.contacts);
+            localStorage.setItem('p2p_contacts_enc', encrypted);
+        } else {
+            localStorage.setItem('p2p_contacts', JSON.stringify(this.contacts));
+        }
+    },
+
+    async saveGroups() {
+        if (this.myPass) {
+            const encrypted = await this.encrypt(this.groups);
+            localStorage.setItem('p2p_groups_enc', encrypted);
+        } else {
+            localStorage.setItem('p2p_groups', JSON.stringify(this.groups));
+        }
+    },
+
+    isGroup(id) {
+        return id && id.startsWith('g_');
+    },
+
+    createGroup(name) {
+        if (!name) return;
+        const gid = 'g_' + Math.random().toString(36).substr(2, 9);
+        const color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        this.groups[gid] = {
+            id: gid,
+            name: name,
+            members: [this.myId],
+            color: color,
+            creator: this.myId,
+            created: Date.now()
+        };
+        this.saveGroups();
+        this.refreshContacts();
+        this.selectChat(gid);
+        this.showToast(`Группа "${name}" создана! 👥`);
+        const overlay = document.getElementById('group-create-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const input = document.getElementById('groupNameInput');
+        if (input) input.value = '';
     },
 
     async loadEncryptedData() {
         const cEnc = localStorage.getItem('p2p_contacts_enc');
         const hEnc = localStorage.getItem('p2p_history_enc');
+        const gEnc = localStorage.getItem('p2p_groups_enc');
 
         if (cEnc) {
             const dec = await this.decrypt(cEnc);
@@ -1166,6 +1307,18 @@ const app = {
                 this.contacts = JSON.parse(old);
                 this.saveContacts();
                 localStorage.removeItem('p2p_contacts');
+            }
+        }
+
+        if (gEnc) {
+            const dec = await this.decrypt(gEnc);
+            if (dec) this.groups = dec;
+        } else {
+            const oldG = localStorage.getItem('p2p_groups');
+            if (oldG) {
+                this.groups = JSON.parse(oldG);
+                this.saveGroups();
+                localStorage.removeItem('p2p_groups');
             }
         }
 
@@ -1224,7 +1377,7 @@ const app = {
     },
 
     shareInvite() {
-        const url = `${window.location.origin}${window.location.pathname}#${this.myId}`;
+        const url = `${window.location.origin}${window.location.pathname} #${this.myId} `;
         if (navigator.share) {
             navigator.share({
                 title: 'Мессенджер P2P',
