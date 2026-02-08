@@ -666,6 +666,7 @@ const app = {
 
         if (window.innerWidth <= 768) {
             document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('sidebar-backdrop').style.display = 'none';
         }
 
         this.renderHistory(id);
@@ -853,7 +854,13 @@ const app = {
 
     toggleSidebar() {
         const sb = document.getElementById('sidebar');
-        if (sb) sb.classList.toggle('hidden');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sb) {
+            const isHidden = sb.classList.toggle('hidden');
+            if (window.innerWidth <= 768) {
+                backdrop.style.display = isHidden ? 'none' : 'block';
+            }
+        }
     },
 
     exportData() {
