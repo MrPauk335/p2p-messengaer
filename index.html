@@ -251,6 +251,34 @@
         </div>
     </div>
 
+    <!-- Детали безопасности (Safety Info) -->
+    <div id="safety-overlay" class="overlay" style="display: none;"
+        onclick="if(event.target===this) this.style.display='none'">
+        <div class="modal" style="max-width: 400px;">
+            <div style="position:absolute; top:20px; right:20px; font-size:24px; cursor:pointer; color:var(--text-dim);"
+                onclick="document.getElementById('safety-overlay').style.display='none'">✕</div>
+            <h2 id="safetyTitle">Безопасность чата</h2>
+            <div id="safetyBadges" style="margin:15px 0;"></div>
+
+            <div style="background:var(--glass); padding:15px; border-radius:15px; margin-bottom:20px;">
+                <p style="font-size:12px; margin-bottom:10px; color:var(--text-dim);">Код безопасности (Fingerprint):
+                </p>
+                <div id="safetyFingerprintDisplay" style="font-size:32px; letter-spacing:8px; margin-bottom:5px;"></div>
+                <p style="font-size:11px; color:var(--text-dim);">Если этот код совпадает на обоих устройствах, перехват
+                    сообщений математически невозможен.</p>
+            </div>
+
+            <div style="text-align:left; font-size:12px; line-height:1.6; color:var(--text-dim); margin-bottom:20px;">
+                <p>🔒 <b>Криптография:</b> ECDH P-256 (Handshake) + AES-GCM 256 (Payload)</p>
+                <p>🛡️ <b>Peer-to-Peer:</b> Прямое соединение без серверов.</p>
+            </div>
+
+            <div id="safetyVerifyContainer">
+                <button id="btnVerify" class="btn-main" onclick="app.verifyContact()">Подтвердить личность ✅</button>
+            </div>
+        </div>
+    </div>
+
     <div class="sidebar" id="sidebar">
         <div class="profile-header">
             <div class="avatar" id="myAvatarDisplay">?</div>

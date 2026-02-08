@@ -21,6 +21,7 @@ const app = {
     dbKey: null, // Derived key for local encryption
     identityKeyPair: null, // ECDH KeyPair
     sessionSecrets: {}, // Shared secrets for active chats
+    peerPublicKeys: {}, // Raw public keys for fingerprints
     incognitoMode: localStorage.getItem('p2p_incognito') === 'true',
     burnTimer: parseInt(localStorage.getItem('p2p_burn_timer') || '0'),
 
@@ -867,9 +868,15 @@ const app = {
             if (!c) return;
 
             const isE2EE = !!this.sessionSecrets[this.activeChatId];
+            const isVerified = this.contacts[this.activeChatId]?.verified;
             const warning = this.checkHomograph(c.name) ? ' <span class="warning-badge" title="Внимание! Имя содержит похожие символы разных алфавитов (подделка)">⚠️</span>' : '';
 
-            document.getElementById('chatName').innerHTML = `${this.esc(c.name)} ${isE2EE ? '<span title="E2EE Защищено" style="color:var(--success); font-size:14px; margin-left:5px;">🛡️</span>' : ''}${warning}`;
+            document.getElementById('chatName').innerHTML = `
+                ${this.esc(c.name)} 
+                ${isVerified ? '<span style="color:var(--success); font-size:14px;" title="Личность подтверждена">✅</span>' : ''}
+                ${isE2EE ? '<span title="E2EE Защищено" style="color:var(--success); font-size:14px; margin-left:5px;">🛡️</span>' : ''}
+                ${warning}
+            `;
 
             document.getElementById('chatStatus').innerText = this.connections[this.activeChatId] ? 'В сети' : 'Не в сети';
             const av = document.getElementById('chatAvatar');
@@ -878,7 +885,9 @@ const app = {
 
             const safety = document.getElementById('chatSafety');
             safety.style.display = 'flex';
-            document.getElementById('fingerprintValue').innerText = this.genFingerprint(this.myId, this.activeChatId);
+            this.genFingerprint(this.activeChatId).then(fp => {
+                document.getElementById('fingerprintValue').innerText = fp;
+            });
         },
 
         checkHomograph(name) {
@@ -887,24 +896,65 @@ const app = {
             return hasLatin && hasCyrillic;
         },
 
-        genFingerprint(id1, id2) {
-            const combined = [id1, id2].sort().join('');
-            let hash = 0;
-            for (let i = 0; i < combined.length; i++) {
-                hash = ((hash << 5) - hash) + combined.charCodeAt(i);
-                hash |= 0;
-            }
-            const emojis = ['🕶️', '🚀', '🔒', '💎', '🛡️', '🛰️', '⚡', '🌌', '🎈', '🍀'];
+        async genFingerprint(peerId) {
+            // Fingerprint is based on the hash of BOTH public keys joined alphabetically
+            const myPub = await this.exportPublicKey();
+            const peerPub = this.peerPublicKeys[peerId] || '';
+            if (!peerPub) return '🔒🔒🔒🔒'; // Waiting for handshake
+
+            const combined = [myPub, peerPub].sort().join('');
+            const msgUint8 = new TextEncoder().encode(combined);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+            const emojis = ['🕶️', '🚀', '🔒', '💎', '🛡️', '🛰️', '⚡', '🌌', '🎈', '🍀', '🍎', '🐲', '🌈', '🍕', '🎮'];
             let res = '';
-            const hStr = Math.abs(hash).toString();
             for (let i = 0; i < 4; i++) {
-                res += emojis[parseInt(hStr[i] || i) % emojis.length];
+                // Use first 4 bytes of SHA256 for the emojis
+                res += emojis[hashArray[i] % emojis.length];
             }
             return res;
         },
 
-        showSafetyInfo() {
-            alert(`Код безопасности: ${document.getElementById('fingerprintValue').innerText}\nЕсли у вашего собеседника такой же код — ваш чат на 100% приватен.`);
+        async showSafetyInfo() {
+            const id = this.activeChatId;
+            const c = this.contacts[id];
+            if (!c) return;
+
+            document.getElementById('safetyTitle').innerText = c.name;
+            const fp = await this.genFingerprint(id);
+            document.getElementById('safetyFingerprintDisplay').innerText = fp;
+
+            const btn = document.getElementById('btnVerify');
+            if (c.verified) {
+                btn.innerText = 'Удалить верификацию ✖️';
+                btn.style.background = '#252525';
+                btn.onclick = () => this.verifyContact(false);
+            } else {
+                btn.innerText = 'Подтвердить личность ✅';
+                btn.style.background = 'var(--success)';
+                btn.onclick = () => this.verifyContact(true);
+            }
+
+            const badges = document.getElementById('safetyBadges');
+            const isE2EE = !!this.sessionSecrets[id];
+            badges.innerHTML = `
+                <span class="badge" style="background:${isE2EE ? 'rgba(0, 210, 106, 0.1)' : 'rgba(255, 77, 77, 0.1)'}; color:${isE2EE ? 'var(--success)' : 'var(--danger)'}; padding:5px 10px; border-radius:20px; font-size:11px; margin-right:5px;">
+                    ${isE2EE ? '● Шифрование активно' : '○ Ожидание рукопожатия'}
+                </span>
+            `;
+
+            document.getElementById('safety-overlay').style.display = 'flex';
+        },
+
+        verifyContact(status) {
+            if (!this.activeChatId) return;
+            this.contacts[this.activeChatId].verified = status;
+            this.saveContacts();
+            this.refreshContacts();
+            this.updateChatHeader();
+            document.getElementById('safety-overlay').style.display = 'none';
+            this.showToast(status ? 'Личность подтверждена! ✅' : 'Верификация удалена');
         },
 
     async sendMessage() {
