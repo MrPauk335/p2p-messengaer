@@ -1205,16 +1205,16 @@ const app = {
 
             const active = this.activeChatId === gid ? 'active' : '';
             const el = document.createElement('div');
-            el.className = `contact ${active} `;
+            el.className = `contact ${active}`;
             el.onclick = () => this.selectChat(gid);
-            el.style.borderLeft = `4px solid ${g.color} `;
+            el.style.borderLeft = `4px solid ${g.color}`;
             el.innerHTML = `
-    < div class="avatar" style = "background:${g.color}" >👥</div >
-        <div class="contact-details">
-            <div><b>${this.esc(g.name)}</b></div>
-            <span>${g.members.length} участников</span>
-        </div>
-`;
+                <div class="avatar" style="background:${g.color}">👥</div>
+                <div class="contact-details">
+                    <div><b>${this.esc(g.name)}</b></div>
+                    <span>${g.members.length} участников</span>
+                </div>
+            `;
             list.appendChild(el);
         });
 
@@ -1227,16 +1227,16 @@ const app = {
             const online = this.connections[id] ? 'online' : '';
 
             const el = document.createElement('div');
-            el.className = `contact ${active} `;
+            el.className = `contact ${active}`;
             el.onclick = () => this.selectChat(id);
             el.innerHTML = `
-    < div class="avatar" style = "background:${c.color}" > ${this.esc(c.name.charAt(0).toUpperCase())}</div >
+                <div class="avatar" style="background:${c.color}">${this.esc(c.name.charAt(0).toUpperCase())}</div>
                 <div class="contact-details">
                     <div>${this.esc(c.name)}</div>
                     <span>${this.esc(c.last || 'Нет сообщений')}</span>
                 </div>
                 <div class="status-dot ${online}"></div>
-`;
+            `;
             list.appendChild(el);
         });
     },
