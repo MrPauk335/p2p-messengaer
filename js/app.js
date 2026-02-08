@@ -664,7 +664,9 @@ const app = {
         document.getElementById('sendBtn').disabled = false;
         document.getElementById('msgInput').focus();
 
-        if (window.innerWidth <= 768) this.toggleSidebar();
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.add('hidden');
+        }
 
         this.renderHistory(id);
         this.refreshContacts();
