@@ -1679,6 +1679,7 @@ const app = {
     },
 
     async handleSyncPush(conn) {
+        this.addTrustedDevice(conn.peer); // Bidirectional trust
         const data = {
             nick: this.myNick,
             uid: this.myId,

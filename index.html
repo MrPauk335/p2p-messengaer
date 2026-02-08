@@ -186,6 +186,14 @@
                 <input type="password" id="editPass" class="big-input" placeholder="Новый пароль">
             </div>
 
+            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                <h3 style="font-size:14px; margin:0 0 5px;">🔄 Синхронизация данных (Auto-Sync)</h3>
+                <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Свяжите устройства один раз, и они
+                    будут обновляться автоматически.</p>
+                <button class="btn-main" style="background:var(--accent); font-size:13px;"
+                    onclick="app.showSyncOverlay('source')">Синхронизировать это устройство</button>
+            </div>
+
             <div class="settings-section"
                 style="text-align:left; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
                 <h3 style="font-size:14px; margin-bottom:10px;">🛡️ Безопасность</h3>
@@ -258,14 +266,6 @@
                         рабочий стол или главный экран смартфона.</p>
                     <button class="btn-main" style="background:var(--accent); font-size:13px; margin-bottom:10px;"
                         onclick="app.promptInstall()">Установить Messenger</button>
-                </div>
-
-                <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
-                    <h3 style="font-size:14px; margin:0 0 10px;">🔄 Синхронизация данных</h3>
-                    <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Перенесите чаты и контакты на
-                        другое устройство напрямую.</p>
-                    <button class="btn-main" style="background:var(--accent); font-size:13px;"
-                        onclick="app.showSyncOverlay('source')">Синхронизировать это устройство</button>
                 </div>
             </div>
 
