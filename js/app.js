@@ -235,7 +235,7 @@ const app = {
                 const markup = {
                     keyboard: [
                         [{ text: "📊 Статус" }, { text: "🚫 Выйти" }],
-                        [{ text: "❓ Помощь" }]
+                        [{ text: "❓ Помощь" }, { text: "🎧 Поддержка" }]
                     ],
                     resize_keyboard: true,
                     one_time_keyboard: false
@@ -402,7 +402,10 @@ const app = {
                 this.tgEnabled = true;
                 localStorage.setItem('p2p_tg_chatid', this.tgChatId);
                 localStorage.setItem('p2p_tg_enabled', 'true');
-                this.mySecret = 'restored_via_tg';
+                // Generate a real new secret key if restored via TG
+                const newSecret = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                    .map(b => b.toString(16).padStart(2, '0')).join('');
+                this.mySecret = newSecret;
             } else {
                 this.mySecret = secret;
             }
@@ -548,6 +551,8 @@ const app = {
                             this.sendToTg(`📊 <b>Статус сессии:</b>\n👤 Ник: <code>${this.esc(this.myNick)}</code>\n🌐 IP: <code>${this.lastIp}</code>\n📶 Сеть: PeerJS Active`, true);
                         } else if (cmd === '/help' || cmd === '/start' || cmd === '❓ помощь') {
                             this.sendToTg(`🤖 <b>Доступные команды:</b>\n/status - проверить состояние\n/logout - завершить сессию\n/kick - то же самое что logout`, true);
+                        } else if (cmd === '🎧 поддержка') {
+                            this.sendToTg(`👨‍💻 <b>Служба поддержки:</b>\nДля восстановления аккаунта или решения проблем пишите @p2p2fabot (или вашему администратору).`, true);
                         }
                     }
                 }

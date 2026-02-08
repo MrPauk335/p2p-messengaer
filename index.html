@@ -63,6 +63,11 @@
                     style="display:none; margin-top:10px;">
             </div>
 
+            <div style="margin-top:20px; font-size:12px; color:var(--text-dim); text-align:center;">
+                <a href="https://t.me/p2p2fabot" target="_blank" style="color:var(--accent); text-decoration:none;">🎧
+                    Тех. Администрация</a>
+            </div>
+
             <div id="setup-secret-box"
                 style="display:none; background:var(--glass); padding:10px; border-radius:8px; margin-top:10px; text-align:center;">
                 <p style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">🛡️ Ключ Безопасности (без него не
@@ -92,6 +97,14 @@
                 Ключ</button>
             <button class="btn-main" style="background:#0088cc; margin-bottom:12px;" id="btnTgCodeReq"
                 onclick="app.requestTg2fa()">✈️ Код в Telegram</button>
+            <div style="max-width:300px; width:90%; color:var(--text-dim); margin-top:30px; font-size:13px;">
+                <p style="cursor:pointer; text-decoration:underline;" onclick="app.logout(true)">Забыли ключ? Сбросить
+                    вход</p>
+                <p style="margin-top:10px;">
+                    <a href="https://t.me/p2p2fabot" target="_blank"
+                        style="color:var(--accent); text-decoration:none;">🎧 Связаться с Администрацией</a>
+                </p>
+            </div>
         </div>
 
         <div style="max-width:300px; width:90%; display:none;" id="ipKeyInputStep">
