@@ -38,6 +38,8 @@
             </div>
 
             <input type="text" id="setupName" class="big-input" placeholder="Никнейм" maxlength="20">
+            <p style="font-size:10px; color:var(--danger); margin-top:-8px; margin-bottom:10px; opacity:0.8;">⚠️
+                Проверьте раскладку клавиатуры!</p>
             <input type="password" id="setupPass" class="big-input" placeholder="Пароль">
 
             <div id="login-2fa-choice" style="display:none; margin-top:15px;">
@@ -82,6 +84,11 @@
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
             <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px;"></div>
+
+            <div style="margin-top:30px; border-top:1px solid #333; pt:15px; width:100%; text-align:center;">
+                <p style="font-size:11px; color:var(--text-dim); cursor:pointer; text-decoration:underline;"
+                    onclick="app.clearData()">Очистить всё и начать заново</p>
+            </div>
         </div>
     </div>
 
@@ -135,6 +142,8 @@
                 onkeypress="if(event.key==='Enter') app.unlock()">
             <button class="btn-main" onclick="app.unlock()">Разблокировать</button>
             <div id="lockError" style="color:var(--danger); font-size:12px; margin-top:10px; text-align:center;"></div>
+            <p style="font-size:11px; color:var(--text-dim); margin-top:30px; cursor:pointer; text-decoration:underline; text-align:center;"
+                onclick="app.logout(true)">Сбросить текущий аккаунт</p>
         </div>
     </div>
 
