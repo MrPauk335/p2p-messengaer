@@ -12,13 +12,13 @@ function createWindow() {
         icon: path.join(__dirname, 'messenger_app_icon.png'), // Will use PNG if available or SVG if handled
         webPreferences: {
             nodeIntegration: false,
-            contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js') // Optional for now
+            contextIsolation: true
         }
     });
 
     win.setMenuBarVisibility(false);
     win.loadFile('index.html');
+    win.webContents.openDevTools(); // Debug: show console
 }
 
 app.whenReady().then(() => {

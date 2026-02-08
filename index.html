@@ -462,7 +462,8 @@
 
     <script src="js/app.js?v=1.1" defer></script>
     <script>
-        if ('serviceWorker' in navigator) {
+        // Service Worker only works over HTTP, skip for Electron (file://)
+        if ('serviceWorker' in navigator && location.protocol !== 'file:') {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then(reg => console.log('SW Registered'))
