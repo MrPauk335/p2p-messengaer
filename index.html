@@ -511,8 +511,16 @@
     <!-- Регистрация / Вход -->
     <div id="setup-overlay" class="overlay" style="display: none;">
         <div class="modal">
-            <h1>Создать профиль</h1>
-            <p>Выберите имя, цвет и пароль</p>
+            <h1 id="setupTitle">Создать профиль</h1>
+            <div class="setup-tabs" style="display:flex; gap:10px; margin-bottom:20px;">
+                <button class="btn-main active" id="modeReg" onclick="app.setSetupMode('reg')"
+                    style="height:35px; font-size:14px;">Регистрация</button>
+                <button class="btn-main" id="modeLogin" onclick="app.setSetupMode('login')"
+                    style="height:35px; font-size:14px; background:#252525;">Вход</button>
+            </div>
+
+            <p id="setupDesc">Выберите имя, цвет и пароль</p>
+
             <div class="color-picker" id="setupColors">
                 <div class="color-dot active" style="background: #ff4d4d;" data-color="#ff4d4d"></div>
                 <div class="color-dot" style="background: #4dff4d;" data-color="#4dff4d"></div>
@@ -520,8 +528,11 @@
                 <div class="color-dot" style="background: #ffaa00;" data-color="#ffaa00"></div>
                 <div class="color-dot" style="background: #b300ff;" data-color="#b300ff"></div>
             </div>
-            <input type="text" id="setupName" class="big-input" placeholder="Никнейм (будет уникальным)" maxlength="20">
-            <input type="password" id="setupPass" class="big-input" placeholder="Пароль для входа">
+
+            <input type="text" id="setupName" class="big-input" placeholder="Никнейм" maxlength="20">
+            <input type="password" id="setupPass" class="big-input" placeholder="Пароль">
+            <input type="text" id="setupSecretInput" class="big-input" placeholder="Ключ Безопасности"
+                style="display:none;">
 
             <div id="setup-secret-box"
                 style="display:none; background:var(--glass); padding:10px; border-radius:8px; margin-top:10px; text-align:left;">
@@ -532,7 +543,10 @@
                     onclick="navigator.clipboard.writeText(this.innerText); app.showToast('Ключ скопирован! 🆔')"></code>
             </div>
 
-            <button id="setupBtn" class="btn-main" onclick="app.finishSetup()">Начать работу</button>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button id="setupBtn" class="btn-main" style="flex:2" onclick="app.finishSetup()">Начать работу</button>
+                <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
+            </div>
             <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px;"></div>
         </div>
     </div>
@@ -647,6 +661,7 @@
             history: JSON.parse(localStorage.getItem('p2p_history') || '{}'),
             connections: {},
             activeChatId: null,
+            setupMode: 'reg', // 'reg' or 'login'
 
             init() {
                 // Инициализация палитры в сетапе
@@ -666,6 +681,25 @@
                 }
 
                 window.addEventListener('hashchange', () => this.checkHash());
+            },
+
+            setSetupMode(mode) {
+                this.setupMode = mode;
+                const isReg = mode === 'reg';
+
+                document.getElementById('setupTitle').innerText = isReg ? 'Создать профиль' : 'Войти в аккаунт';
+                document.getElementById('setupDesc').innerText = isReg ? 'Выберите имя, цвет и пароль' : 'Введите данные вашего аккаунта';
+
+                document.getElementById('modeReg').classList.toggle('active', isReg);
+                document.getElementById('modeReg').style.background = isReg ? 'var(--accent)' : '#252525';
+                document.getElementById('modeLogin').classList.toggle('active', !isReg);
+                document.getElementById('modeLogin').style.background = !isReg ? 'var(--accent)' : '#252525';
+
+                document.getElementById('setupColors').style.display = isReg ? 'flex' : 'none';
+                document.getElementById('setupSecretInput').style.display = isReg ? 'none' : 'block';
+                document.getElementById('setup-secret-box').style.display = (isReg && this.tempSecret) ? 'block' : 'none';
+
+                document.getElementById('setupBtn').innerText = isReg ? 'Начать работу' : 'Войти';
             },
 
             async checkIP() {
@@ -740,6 +774,7 @@
             async finishSetup() {
                 const name = document.getElementById('setupName').value.trim();
                 const pass = document.getElementById('setupPass').value.trim();
+                const secret = document.getElementById('setupSecretInput').value.trim();
 
                 if (name.length < 2) {
                     return document.getElementById('setupError').innerText = "Слишком короткое имя";
@@ -747,24 +782,31 @@
                 if (!pass) {
                     return document.getElementById('setupError').innerText = "Пароль обязателен для защиты";
                 }
+                if (this.setupMode === 'login' && !secret) {
+                    return document.getElementById('setupError').innerText = "Введите Ключ Безопасности";
+                }
 
-                document.getElementById('setupBtn').innerText = "Проверка имени...";
+                document.getElementById('setupBtn').innerText = this.setupMode === 'reg' ? "Проверка имени..." : "Вход...";
                 document.getElementById('setupBtn').disabled = true;
 
                 // Проверка уникальности никнейма
                 const testPeerId = `p2p_user_${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-                const isTaken = await this.checkIdTaken(testPeerId);
 
-                if (isTaken) {
-                    document.getElementById('setupBtn').innerText = "Начать работу";
-                    document.getElementById('setupBtn').disabled = false;
-                    return document.getElementById('setupError').innerText = "Этот никнейм уже занят!";
+                if (this.setupMode === 'reg') {
+                    const isTaken = await this.checkIdTaken(testPeerId);
+                    if (isTaken) {
+                        document.getElementById('setupBtn').innerText = "Начать работу";
+                        document.getElementById('setupBtn').disabled = false;
+                        return document.getElementById('setupError').innerText = "Этот никнейм уже занят!";
+                    }
+                    this.mySecret = this.tempSecret;
+                } else {
+                    this.mySecret = secret;
                 }
 
                 this.myNick = name;
                 this.myId = testPeerId;
                 this.myPass = pass;
-                this.mySecret = this.tempSecret;
 
                 localStorage.setItem('p2p_nick', this.myNick);
                 localStorage.setItem('p2p_uid', this.myId);
