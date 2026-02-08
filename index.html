@@ -186,16 +186,17 @@
                 <input type="password" id="editPass" class="big-input" placeholder="Новый пароль">
             </div>
 
-            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
-                <h3 style="font-size:14px; margin:0 0 5px;">🔄 Синхронизация данных (Auto-Sync)</h3>
-                <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Свяжите устройства один раз, и они
-                    будут обновляться автоматически.</p>
-                <button class="btn-main" style="background:var(--accent); font-size:13px;"
-                    onclick="app.showSyncOverlay('source')">Синхронизировать это устройство</button>
-            </div>
-
             <div class="settings-section"
                 style="text-align:left; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                <div id="syncRegistrySection"
+                    style="margin-bottom:25px; background:rgba(0,132,255,0.05); padding:12px; border-radius:10px; border:1px solid rgba(0,132,255,0.2);">
+                    <h3 style="font-size:14px; margin:0 0 5px; color:#0084ff;">🔄 Синхронизация данных (Auto-Sync)</h3>
+                    <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Свяжите девайсы по коду, и они
+                        будут обновляться автоматически в фоне.</p>
+                    <button class="btn-main" style="background:var(--accent); font-size:13px; height:35px;"
+                        onclick="app.showSyncOverlay('source')">Синхронизировать это устройство</button>
+                </div>
+
                 <h3 style="font-size:14px; margin-bottom:10px;">🛡️ Безопасность</h3>
 
                 <label class="switch-item"
