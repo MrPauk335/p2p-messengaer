@@ -6,8 +6,8 @@ const app = {
     mySecret: localStorage.getItem('p2p_secret'),
     lastIp: localStorage.getItem('p2p_last_ip'),
     myColor: localStorage.getItem('p2p_color') || '#0084ff',
-    contacts: JSON.parse(localStorage.getItem('p2p_contacts') || '{}'),
-    history: JSON.parse(localStorage.getItem('p2p_history') || '{}'),
+    contacts: {},
+    history: {},
     connections: {},
     activeChatId: null,
     setupMode: 'reg',
@@ -22,6 +22,44 @@ const app = {
     lastTgUpdateId: 0,
     tgLoginActive: false,
     tempChatId: '',
+    dbKey: null, // Derived key for encryption
+
+    async deriveKey(password) {
+        if (!password) return null;
+        const msgUint8 = new TextEncoder().encode(password);
+        const hash = await crypto.subtle.digest('SHA-256', msgUint8);
+        return await crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    },
+
+    async encrypt(data) {
+        if (!this.myPass) return JSON.stringify(data);
+        if (!this.dbKey) this.dbKey = await this.deriveKey(this.myPass);
+
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = new TextEncoder().encode(JSON.stringify(data));
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, this.dbKey, encoded);
+
+        const combined = new Uint8Array(iv.length + encrypted.byteLength);
+        combined.set(iv);
+        combined.set(new Uint8Array(encrypted), iv.length);
+
+        return btoa(String.fromCharCode(...combined));
+    },
+
+    async decrypt(cipher) {
+        if (!this.myPass || !cipher) return null;
+        try {
+            if (!this.dbKey) this.dbKey = await this.deriveKey(this.myPass);
+            const combined = new Uint8Array(atob(cipher).split('').map(c => c.charCodeAt(0)));
+            const iv = combined.slice(0, 12);
+            const data = combined.slice(12);
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this.dbKey, data);
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        } catch (e) {
+            console.error("Decryption failed", e);
+            return null;
+        }
+    },
 
     init() {
         window.addEventListener('resize', () => {
@@ -45,8 +83,11 @@ const app = {
             document.getElementById('setup-overlay').style.display = 'flex';
         } else {
             this.updateMyProfileUI(); // Show nick immediately
-            this.checkIP();
-            this.startTgPolling();
+            this.loadEncryptedData().then(() => {
+                this.checkIP();
+                this.startTgPolling();
+                this.updateEncryptionStatus();
+            });
         }
 
         window.addEventListener('hashchange', () => this.checkHash());
@@ -817,11 +858,13 @@ const app = {
         }
     },
 
-    saveMsg(id, text, side) {
+    async saveMsg(id, text, side) {
         if (!this.history[id]) this.history[id] = [];
         const time = new Date().toLocaleTimeString().slice(0, 5);
         this.history[id].push({ text, side, time });
-        localStorage.setItem('p2p_history', JSON.stringify(this.history));
+
+        const encrypted = await this.encrypt(this.history);
+        localStorage.setItem('p2p_history_enc', encrypted);
 
         if (this.activeChatId === id) {
             this.appendBubble(text, side, time);
@@ -883,8 +926,53 @@ const app = {
         this.refreshContacts();
     },
 
-    saveContacts() {
-        localStorage.setItem('p2p_contacts', JSON.stringify(this.contacts));
+    async saveContacts() {
+        const encrypted = await this.encrypt(this.contacts);
+        localStorage.setItem('p2p_contacts_enc', encrypted);
+    },
+
+    async loadEncryptedData() {
+        const cEnc = localStorage.getItem('p2p_contacts_enc');
+        const hEnc = localStorage.getItem('p2p_history_enc');
+
+        if (cEnc) {
+            const dec = await this.decrypt(cEnc);
+            if (dec) this.contacts = dec;
+        } else {
+            // Migration for old unencrypted data
+            const old = localStorage.getItem('p2p_contacts');
+            if (old) {
+                this.contacts = JSON.parse(old);
+                this.saveContacts();
+                localStorage.removeItem('p2p_contacts');
+            }
+        }
+
+        if (hEnc) {
+            const dec = await this.decrypt(hEnc);
+            if (dec) this.history = dec;
+        } else {
+            // Migration for old unencrypted data
+            const old = localStorage.getItem('p2p_history');
+            if (old) {
+                this.history = JSON.parse(old);
+                this.saveMsgMigration(); // Save encrypted
+                localStorage.removeItem('p2p_history');
+            }
+        }
+    },
+
+    async saveMsgMigration() {
+        const encrypted = await this.encrypt(this.history);
+        localStorage.setItem('p2p_history_enc', encrypted);
+    },
+
+    updateEncryptionStatus() {
+        const status = document.getElementById('encryptionStatus');
+        if (status) {
+            status.innerHTML = this.myPass ? '🛡️ Данные зашифрованы (AES-GCM)' : '⚠️ Данные не зашифрованы (установите пароль)';
+            status.style.color = this.myPass ? 'var(--success)' : 'var(--danger)';
+        }
     },
 
     reconnect() {
@@ -945,20 +1033,28 @@ const app = {
         }
     },
 
-    exportData() {
+    async exportData() {
         const data = {
             nick: this.myNick,
             uid: this.myId,
             color: this.myColor,
             pass: this.myPass,
             contacts: this.contacts,
-            history: this.history
+            history: this.history,
+            encrypted: !!this.myPass
         };
-        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+
+        let finalData = data;
+        if (this.myPass) {
+            const cipher = await this.encrypt(data);
+            finalData = { payload: cipher, encrypted: true };
+        }
+
+        const blob = new Blob([JSON.stringify(finalData)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `messenger_backup_${this.myNick}.json`;
+        a.download = `messenger_backup_${this.myNick}${this.myPass ? '_secured' : ''}.json`;
         a.click();
     },
 
@@ -969,16 +1065,42 @@ const app = {
         input.onchange = (e) => {
             const file = e.target.files[0];
             const reader = new FileReader();
-            reader.onload = (re) => {
+            reader.onload = async (re) => {
                 try {
-                    const data = JSON.parse(re.target.result);
+                    let data = JSON.parse(re.target.result);
+
+                    if (data.encrypted && data.payload) {
+                        const pass = prompt("Этот файл зашифрован. Введите пароль для импорта:");
+                        if (!pass) return;
+
+                        // Temporarily use the provided password to decrypt
+                        const tempKey = await this.deriveKey(pass);
+                        const combined = new Uint8Array(atob(data.payload).split('').map(c => c.charCodeAt(0)));
+                        const iv = combined.slice(0, 12);
+                        const cipher = combined.slice(12);
+                        try {
+                            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, tempKey, cipher);
+                            data = JSON.parse(new TextDecoder().decode(decrypted));
+                        } catch (e) {
+                            return alert("Неверный пароль для дешифровки!");
+                        }
+                    }
+
                     if (confirm("Это заменит все ваши текущие данные. Продолжить?")) {
                         localStorage.setItem('p2p_nick', data.nick);
                         localStorage.setItem('p2p_uid', data.uid);
                         localStorage.setItem('p2p_color', data.color);
                         if (data.pass) localStorage.setItem('p2p_pass', data.pass);
-                        localStorage.setItem('p2p_contacts', JSON.stringify(data.contacts));
-                        localStorage.setItem('p2p_history', JSON.stringify(data.history));
+
+                        // Handle potential plaintext vs encrypted data in import
+                        this.contacts = data.contacts;
+                        this.history = data.history;
+                        this.myPass = data.pass;
+                        this.dbKey = null; // Forces re-derivation
+
+                        await this.saveContacts();
+                        await this.saveMsgMigration();
+
                         location.reload();
                     }
                 } catch (err) { alert("Ошибка при чтении файла"); }
