@@ -28,8 +28,8 @@ const app = {
     normalizeId(id) {
         if (!id) return '';
         const prefix = id.startsWith('u_') ? 'u_' : 'p2p_user_';
-        const clean = id.replace('p2p_user_', '').replace('u_', '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        return prefix + clean;
+        const clean = id.replace('p2p_user_', '').replace('u_', '').toLowerCase().replace(/[^a-z0-9\_]/g, '');
+        return (id.includes('_dev_')) ? clean : prefix + clean;
     },
     dbKey: null, // Derived key for local encryption
     identityKeyPair: null, // ECDH KeyPair
@@ -1632,9 +1632,9 @@ const app = {
         if (mode === 'source') {
             sourceView.style.display = 'block';
             targetView.style.display = 'none';
-            // Show the 6-digit "Sync Code" (derived from Peer ID for simplicity in this demo)
-            // Realistically we should use a shorter alias or the full ID
-            document.getElementById('syncCodeDisplay').innerText = this.myId.slice(-6).toUpperCase();
+            // Show the FULL Peer ID for guaranteed connectivity
+            const syncId = (this.peer && this.peer.id) ? this.peer.id : this.myId;
+            document.getElementById('syncCodeDisplay').innerText = syncId;
             document.getElementById('syncSourceStatus').innerText = "Ожидание подключения...";
         } else {
             sourceView.style.display = 'none';
@@ -1655,9 +1655,7 @@ const app = {
         // This is a bit of a placeholder logic since PeerJS doesn't support aliasing easily without a server.
         // User should ideally enter the FULL Peer ID. Let's adjust to support both.
         let targetId = partialId;
-        if (!targetId.startsWith('p2p_user_') && !targetId.startsWith('u_')) {
-            // If short code, we might need to ask for full ID or use a Discovery service
-            // For now, let's assume the user enters the FULL ID or we normalize it
+        if (!targetId.includes('_dev_') && !targetId.startsWith('p2p_user_') && !targetId.startsWith('u_')) {
             targetId = this.normalizeId(targetId);
         }
 
