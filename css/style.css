@@ -46,15 +46,82 @@ body {
     overflow: hidden;
 }
 
-/* --- SIDEBAR --- */
+.app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* --- NAV RAIL (1st Column) --- */
+.nav-rail {
+    width: 72px;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.rail-item {
+    width: 48px;
+    height: 48px;
+    background: var(--panel);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-radius 0.2s, background 0.2s, color 0.2s;
+    font-size: 20px;
+    position: relative;
+    user-select: none;
+}
+
+.rail-item:hover,
+.rail-item.active {
+    border-radius: 16px;
+    background: var(--accent);
+    color: #fff;
+}
+
+.rail-item.active::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 25%;
+    height: 50%;
+    width: 4px;
+    background: #fff;
+    border-radius: 0 4px 4px 0;
+}
+
+.rail-divider {
+    width: 32px;
+    height: 2px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+.rail-icon {
+    pointer-events: none;
+}
+
+.main-panes {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- SIDEBAR (2nd Column) --- */
 .sidebar {
-    width: 350px;
+    width: 240px;
     background: var(--panel);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
-    z-index: 100;
+    flex-shrink: 0;
 }
 
 .profile-header {
@@ -235,13 +302,14 @@ body {
     animation: fadeIn 0.3s ease;
 }
 
-/* --- CHAT AREA --- */
+/* --- CHAT AREA (3rd Column) --- */
 .chat-area {
     flex: 1;
     display: flex;
     flex-direction: column;
     background: radial-gradient(circle at center, #111 0%, #050505 100%);
     position: relative;
+    min-width: 0;
 }
 
 .chat-header {

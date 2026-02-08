@@ -1,0 +1,15 @@
+{
+    "name": "p2p-messenger",
+    "version": "1.0.0",
+    "description": "Private, serverless P2P communication based on PeerJS.",
+    "main": "main.js",
+    "scripts": {
+        "start": "electron ."
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "electron": "^33.0.0"
+    }
+}
