@@ -29,7 +29,7 @@ const app = {
         if (!id) return '';
         const prefix = id.startsWith('u_') ? 'u_' : 'p2p_user_';
         const clean = id.replace('p2p_user_', '').replace('u_', '').toLowerCase().replace(/[^a-z0-9\_]/g, '');
-        return (id.includes('_dev_')) ? clean : prefix + clean;
+        return prefix + clean;
     },
     dbKey: null, // Derived key for local encryption
     identityKeyPair: null, // ECDH KeyPair
@@ -1646,33 +1646,39 @@ const app = {
 
     async startSyncPull() {
         const partialId = document.getElementById('syncInputCode').value.trim().toLowerCase();
-        if (partialId.length < 6) return this.showToast("Код должен быть 6 символов");
+        if (!partialId) return this.showToast("Введите ID или код");
 
-        document.getElementById('syncTargetStatus').innerText = "Поиск устройства...";
+        document.getElementById('syncTargetStatus').innerText = "Подключение к устройству...";
+        console.log('Syncing with:', partialId);
 
-        // We need to find the REAL peer ID from the short code. 
-        // In this implementation, the code is just the end of the ID.
-        // This is a bit of a placeholder logic since PeerJS doesn't support aliasing easily without a server.
-        // User should ideally enter the FULL Peer ID. Let's adjust to support both.
         let targetId = partialId;
         if (!targetId.includes('_dev_') && !targetId.startsWith('p2p_user_') && !targetId.startsWith('u_')) {
             targetId = this.normalizeId(targetId);
         }
 
+        // Timeout for connection
+        const timeout = setTimeout(() => {
+            document.getElementById('syncTargetStatus').innerText = "Запрос затянулся. Попробуйте нажать кнопку ещё раз или проверьте интернет.";
+        }, 12000);
+
         const conn = this.peer.connect(targetId, { reliable: true });
         conn.on('open', () => {
-            document.getElementById('syncTargetStatus').innerText = "Соединение установлено. Запрос данных...";
+            clearTimeout(timeout);
+            document.getElementById('syncTargetStatus').innerText = "Соединение установлено! Ожидайте подтверждения на другом устройстве...";
             conn.send({ type: 'sync_pull' });
         });
 
         conn.on('data', (data) => {
             if (data.type === 'sync_push') {
+                document.getElementById('syncTargetStatus').innerText = "Данные получены, синхронизация...";
                 this.processSyncData(data.payload);
             }
         });
 
-        conn.on('error', () => {
-            document.getElementById('syncTargetStatus').innerText = "Ошибка подключения. Убедитесь, что исходное устройство в сети.";
+        conn.on('error', (err) => {
+            clearTimeout(timeout);
+            console.error('Sync Connect Error:', err);
+            document.getElementById('syncTargetStatus').innerText = "Ошибка: Устройство не найдено или отклонило запрос.";
         });
     },
 
