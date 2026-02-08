@@ -877,8 +877,7 @@ const app = {
                 }
                 if (text) {
                     const chatId = data.gid || conn.peer;
-                    const displayMsg = data.gid ? `[${this.contacts[conn.peer]?.name || '?'}] ${text}` : text;
-                    this.saveMsg(chatId, displayMsg, 'them');
+                    this.saveMsg(chatId, text, 'them', conn.peer);
                 }
             } else if (data.type === 'group_sync') {
                 // Incoming group info from an invite or update
@@ -1121,7 +1120,7 @@ const app = {
                     conn.send({ type: 'msg', payload: enc.payload, iv: enc.iv, isEncrypted: true, gid: id });
                 }
             });
-            this.saveMsg(id, text, 'me');
+            this.saveMsg(id, text, 'me', this.myId);
         } else {
             const conn = this.connections[id];
             if (conn && conn.open) {
@@ -1131,7 +1130,7 @@ const app = {
                 } else {
                     conn.send({ type: 'msg', text });
                 }
-                this.saveMsg(id, text, 'me');
+                this.saveMsg(id, text, 'me', this.myId);
             } else {
                 this.showToast('Собеседник не в сети 🚫');
             }
@@ -1139,22 +1138,24 @@ const app = {
         input.value = '';
     },
 
-    async saveMsg(id, text, side) {
+    async saveMsg(id, text, side, senderId = null) {
+        if (!senderId) senderId = (side === 'me' ? this.myId : id);
+
         if (this.incognitoMode) {
-            this.appendBubble(text, side, new Date().toLocaleTimeString().slice(0, 5));
+            this.appendBubble(text, side, new Date().toLocaleTimeString().slice(0, 5), senderId);
             this.handleBurnEffect(id, text, side);
             return;
         }
 
         if (!this.history[id]) this.history[id] = [];
         const time = new Date().toLocaleTimeString().slice(0, 5);
-        this.history[id].push({ text, side, time });
+        this.history[id].push({ text, side, time, senderId });
 
         const encrypted = await this.encrypt(this.history);
         localStorage.setItem('p2p_history_enc', encrypted);
 
         if (this.activeChatId === id) {
-            this.appendBubble(text, side, time);
+            this.appendBubble(text, side, time, senderId);
         }
         this.contacts[id].last = (side === 'me' ? 'Вы: ' : '') + text;
         this.saveContacts();
@@ -1179,15 +1180,30 @@ const app = {
         const box = document.getElementById('messages');
         box.innerHTML = '';
         if (this.history[id]) {
-            this.history[id].forEach(m => this.appendBubble(m.text, m.side, m.time));
+            this.history[id].forEach(m => this.appendBubble(m.text, m.side, m.time, m.senderId));
         }
     },
 
-    appendBubble(text, side, time) {
+    appendBubble(text, side, time, senderId) {
         const box = document.getElementById('messages');
         const div = document.createElement('div');
-        div.className = `msg ${side} `;
-        div.innerHTML = `${this.esc(text)} <time>${time}</time>`;
+        div.className = `msg-group ${side}`;
+
+        const isMe = side === 'me';
+        const nick = isMe ? this.myNick : (this.contacts[senderId]?.name || 'Unknown');
+        const color = isMe ? this.myColor : (this.contacts[senderId]?.color || '#888');
+        const avatar = isMe ? this.myNick.charAt(0).toUpperCase() : nick.charAt(0).toUpperCase();
+
+        div.innerHTML = `
+            <div class="msg-avatar" style="background:${color}">${avatar}</div>
+            <div class="msg-content">
+                <div class="msg-header">
+                    <span class="msg-nick" style="color:${color}">${this.esc(nick)}</span>
+                    <span class="msg-time">${time}</span>
+                </div>
+                <div class="msg-text">${this.esc(text)}</div>
+            </div>
+        `;
         box.appendChild(div);
         box.scrollTop = box.scrollHeight;
     },
