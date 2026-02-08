@@ -16,13 +16,50 @@ const app = {
     tgToken: '8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4',
     tgChatId: localStorage.getItem('p2p_tg_chatid') || '',
     tempSecret: null,
-    pairingCode: null,
-    isPairing: false,
-    tg2faCode: null,
-    lastTgUpdateId: 0,
     tgLoginActive: false,
     tempChatId: '',
-    dbKey: null, // Derived key for encryption
+    dbKey: null, // Derived key for local encryption
+    identityKeyPair: null,
+    sessionSecrets: {},
+    incognitoMode: localStorage.getItem('p2p_incognito') === 'true',
+    burnTimer: parseInt(localStorage.getItem('p2p_burn_timer') || '0'),
+    identityKeyPair: null, // ECDH KeyPair
+    sessionSecrets: {}, // Shared secrets for active chats: { peerId: CryptoKey }
+
+    async generateIdentityKey() {
+        this.identityKeyPair = await crypto.subtle.generateKey(
+            { name: 'ECDH', namedCurve: 'P-256' },
+            false,
+            ['deriveKey', 'deriveBits']
+        );
+    },
+
+    async exportPublicKey() {
+        if (!this.identityKeyPair) await this.generateIdentityKey();
+        const exported = await crypto.subtle.exportKey('spki', this.identityKeyPair.publicKey);
+        return btoa(String.fromCharCode(...new Uint8Array(exported)));
+    },
+
+    async importPublicKey(keyB64) {
+        const keyData = new Uint8Array(atob(keyB64).split('').map(c => c.charCodeAt(0)));
+        return await crypto.subtle.importKey(
+            'spki',
+            keyData,
+            { name: 'ECDH', namedCurve: 'P-256' },
+            false,
+            []
+        );
+    },
+
+    async deriveSharedSecret(peerPublicKey) {
+        return await crypto.subtle.deriveKey(
+            { name: 'ECDH', public: peerPublicKey },
+            this.identityKeyPair.privateKey,
+            { name: 'AES-GCM', length: 256 },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    },
 
     async deriveKey(password) {
         if (!password) return null;
@@ -46,18 +83,29 @@ const app = {
         return btoa(String.fromCharCode(...combined));
     },
 
-    async decrypt(cipher) {
-        if (!this.myPass || !cipher) return null;
+    async encryptSessionMsg(peerId, text) {
+        const secret = this.sessionSecrets[peerId];
+        if (!secret) return null;
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = new TextEncoder().encode(text);
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, secret, encoded);
+        return {
+            payload: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+            iv: btoa(String.fromCharCode(...iv))
+        };
+    },
+
+    async decryptSessionMsg(peerId, payload, ivB64) {
+        const secret = this.sessionSecrets[peerId];
+        if (!secret) return null;
         try {
-            if (!this.dbKey) this.dbKey = await this.deriveKey(this.myPass);
-            const combined = new Uint8Array(atob(cipher).split('').map(c => c.charCodeAt(0)));
-            const iv = combined.slice(0, 12);
-            const data = combined.slice(12);
-            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this.dbKey, data);
-            return JSON.parse(new TextDecoder().decode(decrypted));
+            const iv = new Uint8Array(atob(ivB64).split('').map(c => c.charCodeAt(0)));
+            const data = new Uint8Array(atob(payload).split('').map(c => c.charCodeAt(0)));
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, secret, data);
+            return new TextDecoder().decode(decrypted);
         } catch (e) {
-            console.error("Decryption failed", e);
-            return null;
+            console.error("Session decryption failed", e);
+            return "[Ошибка дешифровки E2EE]";
         }
     },
 
@@ -551,14 +599,16 @@ const app = {
         document.getElementById('editName').value = this.myNick;
     },
 
-    openSettings() {
-        if (window.innerWidth <= 768) {
-            this.toggleSidebar(); // Hide sidebar on mobile to avoid overlap
-        }
-        document.getElementById('settings-overlay').style.display = 'flex';
-        document.getElementById('settingIpCheck').checked = this.ipCheck;
-        document.getElementById('settingTgEnabled').checked = this.tgEnabled;
-        this.updateTgSettingsUI();
+    toggleIncognito(enabled) {
+        this.incognitoMode = enabled;
+        localStorage.setItem('p2p_incognito', enabled);
+        this.showToast(enabled ? 'Инкогнито: История не сохраняется 🕶️' : 'Инкогнито выключено');
+    },
+
+    setBurnTimer(seconds) {
+        this.burnTimer = parseInt(seconds);
+        localStorage.setItem('p2p_burn_timer', seconds);
+        this.showToast(seconds > 0 ? `Автоудаление: ${seconds} сек ⏳` : 'Автоудаление выключено');
     },
 
     toggleIpCheck(enabled) {
@@ -843,14 +893,20 @@ const app = {
         alert(`Код безопасности: ${document.getElementById('fingerprintValue').innerText}\nЕсли у вашего собеседника такой же код — ваш чат на 100% приватен.`);
     },
 
-    sendMessage() {
+    async sendMessage() {
         const input = document.getElementById('msgInput');
         const text = input.value.trim();
         const id = this.activeChatId;
         if (!text || !id) return;
 
-        if (this.connections[id] && this.connections[id].open) {
-            this.connections[id].send({ type: 'msg', text });
+        const conn = this.connections[id];
+        if (conn && conn.open) {
+            if (this.sessionSecrets[id]) {
+                const enc = await this.encryptSessionMsg(id, text);
+                conn.send({ type: 'msg', payload: enc.payload, iv: enc.iv, isEncrypted: true });
+            } else {
+                conn.send({ type: 'msg', text });
+            }
             this.saveMsg(id, text, 'me');
             input.value = '';
         } else {

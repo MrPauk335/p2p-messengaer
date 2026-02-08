@@ -219,6 +219,24 @@
                             onclick="app.unlinkTg()">Отключить</button>
                     </div>
                 </div>
+
+                <h3 style="font-size:14px; margin:20px 0 10px;">⚡ Fort Knox Mode</h3>
+                <label class="switch-item"
+                    style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; cursor:pointer;">
+                    <span style="font-size:13px;">Режим Инкогнито (не сохранять историю)</span>
+                    <input type="checkbox" id="settingIncognito" onchange="app.toggleIncognito(this.checked)">
+                </label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span style="font-size:13px;">Таймер удаления (0 = выкл)</span>
+                    <select id="settingBurn" onchange="app.setBurnTimer(this.value)"
+                        style="background:#1a1a1a; color:#fff; border:1px solid var(--border); border-radius:5px; padding:2px 5px;">
+                        <option value="0">Выкл</option>
+                        <option value="10">10 сек</option>
+                        <option value="60">1 мин</option>
+                        <option value="300">5 мин</option>
+                        <option value="3600">1 час</option>
+                    </select>
+                </div>
             </div>
 
             <div style="display:flex; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
