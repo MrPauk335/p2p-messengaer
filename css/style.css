@@ -437,12 +437,17 @@ body {
 .big-input {
     width: 100%;
     background: var(--bg-darker);
-    border: 1px solid var(--border);
+    border: 1px solid #333;
     margin-bottom: 12px;
     color: #fff;
     padding: 12px;
     border-radius: 6px;
     outline: none;
+    transition: border-color 0.2s;
+}
+
+.big-input:focus {
+    border-color: var(--accent);
 }
 
 .btn-main {

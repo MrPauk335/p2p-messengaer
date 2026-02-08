@@ -252,17 +252,19 @@
                 </div>
 
                 <div id="p2pInstallContainer"
-                    style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                    style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px; display:none;">
                     <h3 style="font-size:14px; margin-bottom:10px;">📱 Автономное приложение</h3>
                     <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Установите мессенджер на
                         рабочий стол или главный экран смартфона.</p>
                     <button class="btn-main" style="background:var(--accent); font-size:13px; margin-bottom:10px;"
                         onclick="app.promptInstall()">Установить Messenger</button>
+                </div>
 
-                    <h3 style="font-size:14px; margin:15px 0 10px;">🔄 Синхронизация данных</h3>
+                <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                    <h3 style="font-size:14px; margin:0 0 10px;">🔄 Синхронизация данных</h3>
                     <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Перенесите чаты и контакты на
                         другое устройство напрямую.</p>
-                    <button class="btn-main" style="background:var(--bg-light); font-size:13px;"
+                    <button class="btn-main" style="background:var(--accent); font-size:13px;"
                         onclick="app.showSyncOverlay('source')">Синхронизировать это устройство</button>
                 </div>
             </div>

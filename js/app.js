@@ -21,7 +21,7 @@ const app = {
     tempChatId: '',
     deferredPrompt: null,
     currentContext: 'home', // 'home' or gid
-    isElectron: navigator.userAgent.toLowerCase().includes('electron'),
+    isElectron: (window.process && window.process.type) || navigator.userAgent.toLowerCase().includes('electron'),
 
     normalizeId(id) {
         if (!id) return '';
@@ -185,6 +185,9 @@ const app = {
         if (this.isElectron) {
             const installBox = document.getElementById('p2pInstallContainer');
             if (installBox) installBox.style.display = 'none';
+        } else {
+            const installBox = document.getElementById('p2pInstallContainer');
+            if (installBox) installBox.style.display = 'block';
         }
         this.updateRailGroups();
     },
