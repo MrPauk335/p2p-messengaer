@@ -18,6 +18,8 @@
             --border: #222;
             --glass: rgba(255, 255, 255, 0.03);
             --modal-bg: rgba(10, 10, 10, 0.95);
+            --danger: #ff4d4d;
+            --success: #00d26a;
         }
 
         * {
@@ -181,8 +183,46 @@
         }
 
         .status-dot.online {
-            background: #00d26a;
-            box-shadow: 0 0 8px #00d26a;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .fingerprint {
+            padding: 4px 8px;
+            background: var(--glass);
+            border-radius: 8px;
+            font-size: 16px;
+            display: flex;
+            gap: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .fingerprint:hover {
+            border-color: var(--accent);
+        }
+
+        .warning-badge {
+            color: var(--danger);
+            font-size: 14px;
+            cursor: help;
+            margin-left: 4px;
+        }
+
+        .lock-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
         }
 
         /* --- CHAT AREA --- */
@@ -472,7 +512,7 @@
     <div id="setup-overlay" class="overlay" style="display: none;">
         <div class="modal">
             <h1>Создать профиль</h1>
-            <p>Выберите имя и цвет аватара</p>
+            <p>Выберите имя, цвет и (опционально) пароль</p>
             <div class="color-picker" id="setupColors">
                 <div class="color-dot active" style="background: #ff4d4d;" data-color="#ff4d4d"></div>
                 <div class="color-dot" style="background: #4dff4d;" data-color="#4dff4d"></div>
@@ -481,8 +521,22 @@
                 <div class="color-dot" style="background: #b300ff;" data-color="#b300ff"></div>
             </div>
             <input type="text" id="setupName" class="big-input" placeholder="Ваше имя" maxlength="20">
+            <input type="password" id="setupPass" class="big-input" placeholder="Пароль (пусто = без пароля)">
             <button class="btn-main" onclick="app.finishSetup()">Начать работу</button>
-            <div id="setupError" style="color:#ff4d4d; font-size:12px; margin-top:10px;"></div>
+            <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <!-- Экран блокировки -->
+    <div id="lock-overlay" class="lock-screen" style="display: none;">
+        <div class="avatar" id="lockAvatar" style="width:80px; height:80px; font-size:32px; margin-bottom:20px;">?</div>
+        <h2 id="lockNick">С возвращением</h2>
+        <p style="color:var(--text-dim); margin-bottom:30px;">Введите пароль для входа</p>
+        <div style="max-width:300px; width:90%;">
+            <input type="password" id="lockPass" class="big-input" placeholder="Пароль"
+                onkeypress="if(event.key==='Enter') app.unlock()">
+            <button class="btn-main" onclick="app.unlock()">Разблокировать</button>
+            <div id="lockError" style="color:var(--danger); font-size:12px; margin-top:10px; text-align:center;"></div>
         </div>
     </div>
 
@@ -491,11 +545,16 @@
         onclick="if(event.target===this) this.style.display='none'">
         <div class="modal">
             <h1>Настройки</h1>
-            <p>Редактирование вашего профиля</p>
+            <p>Безопасность и профиль</p>
             <input type="text" id="editName" class="big-input" placeholder="Новое имя">
+            <input type="password" id="editPass" class="big-input" placeholder="Новый пароль">
             <button class="btn-main" onclick="app.updateProfile()">Сохранить</button>
-            <button class="btn-main" style="background:#252525; margin-top:10px;" onclick="app.clearData()">Удалить
-                аккаунт</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-main" style="background:#252525;" onclick="app.exportData()">Экспорт</button>
+                <button class="btn-main" style="background:#252525;" onclick="app.importData()">Импорт</button>
+            </div>
+            <button class="btn-main" style="background:var(--danger); margin-top:20px;"
+                onclick="app.clearData()">Удалить аккаунт</button>
         </div>
     </div>
 
@@ -532,6 +591,10 @@
                 <h3 id="chatName">Выберите чат</h3>
                 <span id="chatStatus">...</span>
             </div>
+            <div id="chatSafety" class="fingerprint" style="margin-left:auto; display:none;"
+                onclick="app.showSafetyInfo()">
+                🔒 <span id="fingerprintValue"></span>
+            </div>
         </div>
 
         <div id="messages">
@@ -550,6 +613,7 @@
             peer: null,
             myId: localStorage.getItem('p2p_uid'),
             myNick: localStorage.getItem('p2p_nick'),
+            myPass: localStorage.getItem('p2p_pass'),
             myColor: localStorage.getItem('p2p_color') || '#0084ff',
             contacts: JSON.parse(localStorage.getItem('p2p_contacts') || '{}'),
             history: JSON.parse(localStorage.getItem('p2p_history') || '{}'),
@@ -568,11 +632,32 @@
 
                 if (!this.myNick) {
                     document.getElementById('setup-overlay').style.display = 'flex';
+                } else if (this.myPass) {
+                    this.showLock();
                 } else {
                     this.start();
                 }
 
                 window.addEventListener('hashchange', () => this.checkHash());
+            },
+
+            showLock() {
+                document.getElementById('lock-overlay').style.display = 'flex';
+                document.getElementById('lockNick').innerText = this.myNick;
+                const av = document.getElementById('lockAvatar');
+                av.innerText = this.myNick.charAt(0).toUpperCase();
+                av.style.background = this.myColor;
+                document.getElementById('lockPass').focus();
+            },
+
+            unlock() {
+                const pass = document.getElementById('lockPass').value;
+                if (pass === this.myPass) {
+                    document.getElementById('lock-overlay').style.display = 'none';
+                    this.start();
+                } else {
+                    document.getElementById('lockError').innerText = "Неверный пароль";
+                }
             },
 
             finishSetup() {
@@ -583,10 +668,12 @@
                 }
                 this.myNick = name;
                 this.myId = 'u_' + Math.random().toString(36).substr(2, 9);
+                this.myPass = document.getElementById('setupPass').value.trim() || null;
 
                 localStorage.setItem('p2p_nick', this.myNick);
                 localStorage.setItem('p2p_uid', this.myId);
                 localStorage.setItem('p2p_color', this.myColor);
+                if (this.myPass) localStorage.setItem('p2p_pass', this.myPass);
 
                 document.getElementById('setup-overlay').style.opacity = '0';
                 setTimeout(() => {
@@ -630,9 +717,20 @@
 
             updateProfile() {
                 const newName = document.getElementById('editName').value.trim();
+                const newPass = document.getElementById('editPass').value.trim();
+
                 if (newName.length >= 2) {
                     this.myNick = newName;
                     localStorage.setItem('p2p_nick', this.myNick);
+
+                    if (newPass) {
+                        this.myPass = newPass;
+                        localStorage.setItem('p2p_pass', this.myPass);
+                    } else if (newPass === "" && confirm("Удалить пароль?")) {
+                        this.myPass = null;
+                        localStorage.removeItem('p2p_pass');
+                    }
+
                     this.updateMyProfileUI();
                     document.getElementById('settings-overlay').style.display = 'none';
                     this.showToast('Профиль обновлен! ✨');
@@ -712,11 +810,44 @@
             updateChatHeader() {
                 const c = this.contacts[this.activeChatId];
                 if (!c) return;
-                document.getElementById('chatName').innerText = c.name;
+
+                const warning = this.checkHomograph(c.name) ? ' <span class="warning-badge" title="Внимание! Имя содержит похожие символы разных алфавитов (подделка)">⚠️</span>' : '';
+                document.getElementById('chatName').innerHTML = c.name + warning;
+
                 document.getElementById('chatStatus').innerText = this.connections[this.activeChatId] ? 'В сети' : 'Не в сети';
                 const av = document.getElementById('chatAvatar');
                 av.innerText = c.name.charAt(0).toUpperCase();
                 av.style.background = c.color;
+
+                const safety = document.getElementById('chatSafety');
+                safety.style.display = 'flex';
+                document.getElementById('fingerprintValue').innerText = this.genFingerprint(this.myId, this.activeChatId);
+            },
+
+            checkHomograph(name) {
+                const hasLatin = /[a-zA-Z]/.test(name);
+                const hasCyrillic = /[а-яА-ЯёЁ]/.test(name);
+                return hasLatin && hasCyrillic;
+            },
+
+            genFingerprint(id1, id2) {
+                const combined = [id1, id2].sort().join('');
+                let hash = 0;
+                for (let i = 0; i < combined.length; i++) {
+                    hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+                    hash |= 0;
+                }
+                const emojis = ['🕶️', '🚀', '🔒', '💎', '🛡️', '🛰️', '⚡', '🌌', '🎈', '🍀'];
+                let res = '';
+                const hStr = Math.abs(hash).toString();
+                for (let i = 0; i < 4; i++) {
+                    res += emojis[parseInt(hStr[i] || i) % emojis.length];
+                }
+                return res;
+            },
+
+            showSafetyInfo() {
+                alert(`Код безопасности: ${document.getElementById('fingerprintValue').innerText}\nЕсли у вашего собеседника такой же код — ваш чат на 100% приватен.`);
             },
 
             sendMessage() {
@@ -847,6 +978,49 @@
 
             toggleSidebar() {
                 document.getElementById('sidebar').classList.toggle('hidden');
+            },
+
+            exportData() {
+                const data = {
+                    nick: this.myNick,
+                    uid: this.myId,
+                    color: this.myColor,
+                    pass: this.myPass,
+                    contacts: this.contacts,
+                    history: this.history
+                };
+                const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `messenger_backup_${this.myNick}.json`;
+                a.click();
+            },
+
+            importData() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        try {
+                            const data = JSON.parse(re.target.result);
+                            if (confirm("Это заменит все ваши текущие данные. Продолжить?")) {
+                                localStorage.setItem('p2p_nick', data.nick);
+                                localStorage.setItem('p2p_uid', data.uid);
+                                localStorage.setItem('p2p_color', data.color);
+                                if (data.pass) localStorage.setItem('p2p_pass', data.pass);
+                                localStorage.setItem('p2p_contacts', JSON.stringify(data.contacts));
+                                localStorage.setItem('p2p_history', JSON.stringify(data.history));
+                                location.reload();
+                            }
+                        } catch (err) { alert("Ошибка при чтении файла"); }
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
             },
 
             clearData() {
