@@ -1649,15 +1649,19 @@ const app = {
             return this.showToast("Нельзя соединиться с самим собой ⚠️");
         }
 
-        // Standard connection without options (reliable:true is deprecated/default)
-        const conn = this.peer.connect(targetId);
+        // Standard connection with explicit JSON serialization
+        this.logSync("Connecting to: " + targetId);
+        const conn = this.peer.connect(targetId, { serialization: 'json' });
+
         conn.on('open', () => {
             clearTimeout(timeout);
-            document.getElementById('syncTargetStatus').innerText = "Соединение установлено! Ожидайте подтверждения на другом устройстве...";
+            this.logSync("Connection OPEN! Sending handshake...");
+            document.getElementById('syncTargetStatus').innerText = "Соединение установлено! Ожидайте подтверждения...";
             conn.send({ type: 'sync_pull' });
         });
 
         conn.on('data', (data) => {
+            this.logSync("Data received: " + data.type);
             if (data.type === 'sync_push') {
                 document.getElementById('syncTargetStatus').innerText = "Данные получены, синхронизация...";
                 this.processSyncData(data.payload);
@@ -1667,8 +1671,19 @@ const app = {
         conn.on('error', (err) => {
             clearTimeout(timeout);
             console.error('Sync Connect Error:', err);
-            document.getElementById('syncTargetStatus').innerText = "Ошибка: Устройство не найдено или отклонило запрос.";
+            this.logSync("Error: " + err.type);
+            document.getElementById('syncTargetStatus').innerText = "Ошибка: " + err.type;
         });
+
+        conn.on('close', () => {
+            this.logSync("Connection CLOSED");
+        });
+    },
+
+    logSync(msg) {
+        console.log('[SyncDebug]', msg);
+        const statusEl = document.getElementById('syncTargetStatus');
+        if (statusEl) statusEl.innerText = msg;
     },
 
     async handleSyncPush(conn) {
