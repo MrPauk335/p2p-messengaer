@@ -89,6 +89,24 @@ const app = {
         return btoa(String.fromCharCode(...combined));
     },
 
+    async decrypt(cipherB64) {
+        if (!this.myPass) {
+            try { return JSON.parse(cipherB64); } catch (e) { return null; }
+        }
+        if (!this.dbKey) this.dbKey = await this.deriveKey(this.myPass);
+
+        try {
+            const combined = new Uint8Array(atob(cipherB64).split('').map(c => c.charCodeAt(0)));
+            const iv = combined.slice(0, 12);
+            const data = combined.slice(12);
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, this.dbKey, data);
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        } catch (e) {
+            console.error("Decryption failed", e);
+            return null;
+        }
+    },
+
     async encryptSessionMsg(peerId, text) {
         const secret = this.sessionSecrets[peerId];
         if (!secret) return null;
@@ -901,10 +919,12 @@ const app = {
         this.renderHistory(id);
         this.refreshContacts();
 
-        if (!this.connections[id] || !this.connections[id].open) {
+        if (this.peer && (!this.connections[id] || !this.connections[id].open)) {
             console.log('Connecting to:', id);
             const conn = this.peer.connect(id, { reliable: true });
             this.handleConnection(conn);
+        } else if (!this.peer) {
+            console.warn("Peer not ready, connection queued.");
         }
     },
 
