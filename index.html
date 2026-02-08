@@ -525,9 +525,11 @@
 
             <div id="setup-secret-box"
                 style="display:none; background:var(--glass); padding:10px; border-radius:8px; margin-top:10px; text-align:left;">
-                <p style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">⚠️ Ключ Безопасности (сохраните
-                    его!):</p>
-                <code id="setupSecretCode" style="color:var(--accent); font-weight:bold; word-break:break-all;"></code>
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">⚠️ Ключ Безопасности (СКОПИРУЙТЕ!
+                    Без него аккаунт не восстановить):</p>
+                <code id="setupSecretCode"
+                    style="color:var(--accent); font-weight:bold; word-break:break-all; cursor:pointer;"
+                    onclick="navigator.clipboard.writeText(this.innerText); app.showToast('Ключ скопирован! 🆔')"></code>
             </div>
 
             <button id="setupBtn" class="btn-main" onclick="app.finishSetup()">Начать работу</button>
@@ -572,6 +574,8 @@
             <input type="password" id="editPass" class="big-input" placeholder="Новый пароль">
             <button class="btn-main" onclick="app.updateProfile()">Сохранить</button>
             <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn-main" style="background:var(--accent);"
+                    onclick="alert('Ваш Ключ Безопасности:\n' + app.mySecret)">Показать Ключ</button>
                 <button class="btn-main" style="background:#252525;" onclick="app.exportData()">Экспорт</button>
                 <button class="btn-main" style="background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
