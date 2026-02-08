@@ -129,7 +129,11 @@ const app = {
             this.genSecret();
             document.getElementById('setup-overlay').style.display = 'flex';
             this.generateIdentityKey().then(() => {
-                this.updateMyProfileUI(); // Show nick immediately
+                this.updateMyProfileUI();
+            });
+        } else {
+            this.generateIdentityKey().then(() => {
+                this.updateMyProfileUI();
                 this.loadEncryptedData().then(() => {
                     this.checkIP();
                     this.startTgPolling();
@@ -421,11 +425,16 @@ const app = {
 
     async updateIpAndStart() {
         try {
-            const res = await fetch('https://api.ipify.org?format=json');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
             const d = await res.json();
+            clearTimeout(timeoutId);
             localStorage.setItem('p2p_last_ip', d.ip);
             this.lastIp = d.ip;
-        } catch (e) { }
+        } catch (e) {
+            console.warn("IP update failed during start/reg", e);
+        }
         this.checkSecurity();
     },
 
@@ -591,11 +600,23 @@ const app = {
     },
 
     updateMyProfileUI() {
+        if (!this.myNick) {
+            document.getElementById('myNickDisplay').innerText = "Загрузка...";
+            return;
+        }
         document.getElementById('myNickDisplay').innerText = this.myNick;
+        const myId = document.getElementById('myIdDisplay');
+        if (myId) {
+            myId.innerText = this.myId || 'Поиск ID...';
+        }
         const avatar = document.getElementById('myAvatarDisplay');
-        avatar.innerText = this.myNick.charAt(0).toUpperCase();
-        avatar.style.background = this.myColor;
-        document.getElementById('editName').value = this.myNick;
+        if (avatar) {
+            avatar.innerText = this.myNick.charAt(0).toUpperCase();
+            avatar.style.background = this.myColor || '#555';
+        }
+        if (document.getElementById('editName')) {
+            document.getElementById('editName').value = this.myNick;
+        }
     },
 
     toggleIncognito(enabled) {
