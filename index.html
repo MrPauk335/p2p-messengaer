@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>P2P Messenger Pro</title>
+    <title>P2P Messenger</title>
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%22 stop-color=%22%230084ff%22/><stop offset=%221%22 stop-color=%22%23b300ff%22/></linearGradient></defs><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22url(%23g)%22/><path d=%22M30 40 L50 60 L70 40 M30 55 L50 75 L70 55%22 stroke=%22white%22 stroke-width=%228%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
@@ -535,12 +537,12 @@
                 style="display:none;">
 
             <div id="setup-secret-box"
-                style="display:none; background:var(--glass); padding:10px; border-radius:8px; margin-top:10px; text-align:left;">
-                <p style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">⚠️ Ключ Безопасности (СКОПИРУЙТЕ!
-                    Без него аккаунт не восстановить):</p>
-                <code id="setupSecretCode"
-                    style="color:var(--accent); font-weight:bold; word-break:break-all; cursor:pointer;"
-                    onclick="navigator.clipboard.writeText(this.innerText); app.showToast('Ключ скопирован! 🆔')"></code>
+                style="display:none; background:var(--glass); padding:10px; border-radius:8px; margin-top:10px; text-align:center;">
+                <p style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">🛡️ Ключ Безопасности (без него не
+                    войти):</p>
+                <button class="btn-main" style="height:35px; font-size:13px; background:var(--accent);"
+                    onclick="navigator.clipboard.writeText(app.tempSecret || app.mySecret); app.showToast('Ключ скопирован! 🆔')">Копировать
+                    Ключ</button>
             </div>
 
             <div style="display:flex; gap:10px; margin-top:20px;">
@@ -603,22 +605,21 @@
                 </p>
 
                 <button class="btn-main" style="background:var(--accent); margin-bottom:10px;"
-                    onclick="alert('Ваш Ключ Безопасности:\n' + app.mySecret)">Показать Ключ</button>
+                    onclick="navigator.clipboard.writeText(app.mySecret); app.showToast('Ключ скопирован! 🆔')">Копировать
+                    Ключ</button>
 
-                <h3 style="font-size:14px; margin:20px 0 10px;">🤖 Telegram Уведомления</h3>
+                <h3 style="font-size:14px; margin:20px 0 10px;">🤖 Telegram 2FA (@p2p2fabot)</h3>
                 <label class="switch-item"
                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; cursor:pointer;">
-                    <span style="font-size:13px;">Включить TG Бота</span>
+                    <span style="font-size:13px;">Включить уведомления</span>
                     <input type="checkbox" id="settingTgEnabled" onchange="app.toggleTg(this.checked)">
                 </label>
 
                 <div id="tgSettings" style="display:none;">
-                    <input type="text" id="tgToken" class="big-input" style="font-size:12px; height:35px;"
-                        placeholder="Bot Token (от @BotFather)">
                     <input type="text" id="tgChatId" class="big-input" style="font-size:12px; height:35px;"
-                        placeholder="Chat ID (от @userinfobot)">
+                        placeholder="Ваш Chat ID (от @userinfobot)">
                     <button class="btn-main" style="background:#0088cc; height:35px; font-size:12px;"
-                        onclick="app.testTg()">Отправить Ключ в TG</button>
+                        onclick="app.testTg()">Проверить связь</button>
                 </div>
             </div>
 
@@ -697,7 +698,7 @@
             setupMode: 'reg', // 'reg' or 'login'
             ipCheck: localStorage.getItem('p2p_ip_check') !== 'false',
             tgEnabled: localStorage.getItem('p2p_tg_enabled') === 'true',
-            tgToken: localStorage.getItem('p2p_tg_token') || '',
+            tgToken: '8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4', // Hardcoded @p2p2fabot
             tgChatId: localStorage.getItem('p2p_tg_chatid') || '',
 
             init() {
@@ -746,7 +747,6 @@
 
                 document.getElementById('settingTgEnabled').checked = this.tgEnabled;
                 document.getElementById('tgSettings').style.display = this.tgEnabled ? 'block' : 'none';
-                document.getElementById('tgToken').value = this.tgToken;
                 document.getElementById('tgChatId').value = this.tgChatId;
             },
 
@@ -763,16 +763,14 @@
             },
 
             async testTg() {
-                this.tgToken = document.getElementById('tgToken').value.trim();
                 this.tgChatId = document.getElementById('tgChatId').value.trim();
-                localStorage.setItem('p2p_tg_token', this.tgToken);
                 localStorage.setItem('p2p_tg_chatid', this.tgChatId);
 
-                if (!this.tgToken || !this.tgChatId) return alert("Введите Token и Chat ID!");
+                if (!this.tgChatId) return alert("Введите Chat ID!");
 
-                const ok = await this.sendToTg(`🛡️ Ваш Ключ Безопасности P2P Messenger:\n\n${this.mySecret}\n\nНикогда не передавайте его третьим лицам!`);
+                const ok = await this.sendToTg(`🛡️ Связь с P2P Messenger установлена!\n\nВаш Ключ Безопасности:\n${this.mySecret}`);
                 if (ok) this.showToast("Ключ отправлен в Telegram! ✈️");
-                else alert("Ошибка отправки! Проверьте Token и Chat ID.");
+                else alert("Ошибка отправки! Проверьте Chat ID или убедитесь, что вы написали боту первым.");
             },
 
             async sendToTg(text) {
@@ -979,10 +977,8 @@
                     }
 
                     // Save extra settings
-                    if (document.getElementById('tgToken')) {
-                        this.tgToken = document.getElementById('tgToken').value.trim();
+                    if (document.getElementById('tgChatId')) {
                         this.tgChatId = document.getElementById('tgChatId').value.trim();
-                        localStorage.setItem('p2p_tg_token', this.tgToken);
                         localStorage.setItem('p2p_tg_chatid', this.tgChatId);
                     }
 
