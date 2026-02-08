@@ -170,6 +170,7 @@ const app = {
 
         // Heartbeat for status
         setInterval(() => {
+            this.updateMyProfileUI();
             if (this.activeChatId) {
                 const conn = this.connections[this.activeChatId];
                 const isOnline = conn && conn.open;
@@ -621,6 +622,7 @@ const app = {
 
         this.peer.on('open', (id) => {
             console.log('Peer ID:', id);
+            this.updateMyProfileUI(); // Update to show "Online"
             this.checkHash();
             this.reconnect();
         });
@@ -639,7 +641,14 @@ const app = {
                 if (status && this.activeChatId) status.innerText = "Собеседник оффлайн";
             } else if (err.type === 'network') {
                 if (status) status.innerHTML = "Ошибка сети <span style='cursor:pointer; text-decoration:underline;' onclick='app.reconnect()'>🔄 Повтор</span>";
+                if (myIdDisplay) myIdDisplay.innerHTML = `${this.myId} <br> <span style="color:var(--danger)">Ошибка сети 📶</span>`;
             }
+            this.updateMyProfileUI();
+        });
+
+        this.peer.on('disconnected', () => {
+            this.updateMyProfileUI();
+            setTimeout(() => { if (this.peer.disconnected) this.peer.reconnect(); }, 5000);
         });
 
         this.refreshContacts();
@@ -653,7 +662,13 @@ const app = {
         document.getElementById('myNickDisplay').innerText = this.myNick;
         const myId = document.getElementById('myIdDisplay');
         if (myId) {
-            myId.innerText = this.myId || 'Поиск ID...';
+            let statusText = '<span style="color:var(--danger)">Оффлайн 🔴</span>';
+            if (this.peer) {
+                if (this.peer.open) statusText = '<span style="color:var(--success)">В сети 🟢</span>';
+                else if (this.peer.disconnected) statusText = '<span style="color:var(--warning)">Отключен 🟡</span>';
+                else statusText = '<span style="color:var(--accent)">Подключение... 📡</span>';
+            }
+            myId.innerHTML = `${this.myId} <br> <span style="font-size:10px; opacity:0.8;">${statusText}</span>`;
         }
         const avatar = document.getElementById('myAvatarDisplay');
         if (avatar) {
