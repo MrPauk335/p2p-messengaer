@@ -64,31 +64,15 @@ body {
     width: 100vw;
 }
 
-.nav-rail {
-    width: 72px;
-    background: var(--bg-darker);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 12px 0;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-.main-panes {
-    flex: 1;
-    display: flex;
-    background: var(--bg-medium);
-}
+/* Removed Nav Rail & Main Panes */
 
 .sidebar {
-    width: 280px;
+    width: 300px;
     background: var(--bg-dark);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    border-top-left-radius: 8px;
-    overflow: hidden;
+    border-right: 1px solid var(--border);
 }
 
 .chat-area {
@@ -97,62 +81,6 @@ body {
     flex-direction: column;
     background: var(--bg-medium);
     overflow: hidden;
-}
-
-/* --- Nav Rail (Discord Style) --- */
-.rail-item {
-    width: 48px;
-    height: 48px;
-    background: var(--bg-medium);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-}
-
-.rail-item:hover {
-    border-radius: 16px;
-    background: var(--accent);
-}
-
-.rail-item.active {
-    border-radius: 16px;
-    background: var(--accent);
-}
-
-.rail-item::before {
-    content: '';
-    position: absolute;
-    left: -12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 0;
-    background: #fff;
-    border-radius: 0 4px 4px 0;
-    transition: 0.2s;
-}
-
-.rail-item:hover::before {
-    height: 20px;
-}
-
-.rail-item.active::before {
-    height: 40px;
-}
-
-.rail-icon {
-    font-size: 20px;
-}
-
-.rail-divider {
-    width: 32px;
-    height: 2px;
-    background: var(--bg-light);
-    margin: 4px 0;
 }
 
 /* --- Sidebar --- */

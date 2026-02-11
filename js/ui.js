@@ -2,7 +2,7 @@
 Object.assign(App.prototype, {
     // 1. Refresh Contacts List
     refreshContacts() {
-        const list = document.getElementById('contactsList');
+        const list = document.getElementById('contactList');
         if (!list) return;
         list.innerHTML = '';
 
@@ -46,17 +46,41 @@ Object.assign(App.prototype, {
     // 2. Select Chat
     selectChat(id) {
         this.activeChatId = id;
-        document.getElementById('welcome-screen').style.display = 'none';
-        document.getElementById('chat-screen').style.display = 'flex';
 
-        // Mobile sidebar toggle
+        // Desktop: toggle empty state / chat
+        const empty = document.getElementById('emptyChat');
+        const chat = document.getElementById('chatArea');
+        if (empty) empty.style.display = 'none';
+        if (chat) chat.style.display = 'flex';
+
+        // Mobile: Hide sidebar, show chat
         if (window.innerWidth <= 768) {
-            this.toggleSidebar();
+            document.getElementById('sidebar').style.display = 'none';
+            if (chat) chat.style.display = 'flex'; // Ensure flex
+            // Also enable back button in header (it's already there)
         }
 
         this.updateChatHeader();
         this.renderHistory(id);
-        this.refreshContacts(); // update active class
+        this.refreshContacts();
+    },
+
+    // Mobile Back Button / Sidebar Toggle
+    toggleSidebar() {
+        if (window.innerWidth <= 768) {
+            // "Back" action on mobile
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('chatArea').style.display = 'none';
+            this.activeChatId = null;
+        } else {
+            // Desktop sidebar toggle (if we want it collapsible?)
+            // For now, classic interface usually keeps sidebar open.
+            // Maybe just ignore or toggle width?
+            // User requested "Old Interface", which usually has static sidebar.
+            // Let's keep it simple: do nothing or just toggle sidebar?
+            // Implementation in index.html for desktop back button is hidden via CSS (.btn-back { display: none }).
+            // So this is only called on mobile.
+        }
     },
 
     // 3. Update Chat Header
