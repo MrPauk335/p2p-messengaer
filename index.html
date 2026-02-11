@@ -281,10 +281,15 @@
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.exportData()">Экспорт</button>
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
             </div>
-            <button class="btn-main" style="background:#252525; margin-top:10px; font-size:13px;"
+            <button class="btn-main" style="background:var(--bg-elevated); margin-top:10px; font-size:13px;"
                 onclick="app.logout()">Выйти из аккаунта</button>
-            <button class="btn-main" style="background:var(--danger); margin-top:10px; font-size:13px;"
-                onclick="app.clearData()">Удалить всё (с историей)</button>
+
+            <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                <p style="font-size:11px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">Опасная
+                    зона</p>
+                <button class="btn-main" style="background:var(--danger); font-size:13px;" onclick="app.clearData()">🗑️
+                    Удалить аккаунт и все данные</button>
+            </div>
         </div>
     </div>
 
@@ -325,8 +330,8 @@
                         ID: ... <span class="id-status-dot"></span>
                     </small>
                 </div>
-                <!-- Settings hidden/moved as per screenshot, or kept subtle -->
-                <div class="btn-settings" onclick="app.openSettings()" style="opacity: 0;">⚙️</div>
+                <!-- Settings -->
+                <div class="btn-settings" onclick="app.openSettings()" title="Настройки">⚙️</div>
             </div>
 
             <div class="search-container" style="display:flex; gap:10px; align-items:center;">
@@ -338,80 +343,73 @@
                     onkeypress="if(event.key==='Enter') app.tryAddFriend()" style="flex:1" autocomplete="new-password"
                     spellcheck="false" oninput="app.refreshContacts()" name="p2p_search_v3" readonly
                     onfocus="this.removeAttribute('readonly')">
+                <div class="btn-settings" onclick="app.shareInvite()" title="Пригласить друга"
+                    style="margin:0; font-size:18px; color:var(--text-dim);">🔗</div>
                 <div class="btn-settings" onclick="document.getElementById('group-create-overlay').style.display='flex'"
-                    title="Создать группу" style="margin:0; font-size:18px; color:#444;">👥</div>
+                    title="Создать группу" style="margin:0; font-size:18px; color:var(--text-dim);">👥</div>
             </div>
 
             <div class="contact-list" id="contactList">
                 <!-- Контакты -->
             </div>
 
-            <div style="padding: 16px; margin-top: auto;">
-                <button class="btn-main"
-                    style="width:100%; background:#0084ff; box-shadow: 0 4px 12px rgba(0,132,255,0.3);"
-                    onclick="app.shareInvite()">🔗 Пригласить друга</button>
-                <div style="text-align:center; margin-top:12px;">
-                    <span onclick="app.clearData()"
-                        style="font-size:11px; color:#fa777c; cursor:pointer; opacity:0.7; text-decoration: underline;">Удалить
-                        мой аккаунт</span>
+        </div>
+    </div>
+
+    <div class="chat-area" id="chatArea" style="display: none;">
+        <div class="chat-header">
+            <div class="btn-back" onclick="app.toggleSidebar()">⬅️</div>
+            <div class="avatar" style="width:36px; height:36px; font-size:14px;" id="chatAvatar">?</div>
+            <div class="chat-header-info">
+                <h3 id="chatName"></h3>
+                <span id="chatStatus"></span>
+            </div>
+            <div id="chatSafety" class="fingerprint" style="margin-left:auto; display:none;"
+                onclick="app.showSafetyInfo()">
+                <span id="fingerprintValue"></span>
+            </div>
+            <div id="membersToggle" class="btn-settings" style="display:none; font-size:18px;"
+                onclick="app.toggleMembersList()" title="Участники">👥</div>
+        </div>
+
+        <div class="chat-main">
+            <div id="messages">
+                <div class="sys-msg" style="margin-top:auto;">Начните общение, выбрав контакт или добавив по ID
                 </div>
+            </div>
+
+            <div class="members-sidebar" id="membersSidebar" style="display:none;">
+                <h4>Участники</h4>
+                <div id="membersList"></div>
             </div>
         </div>
 
-        <div class="chat-area" id="chatArea" style="display: none;">
-            <div class="chat-header">
-                <div class="btn-back" onclick="app.toggleSidebar()">⬅️</div>
-                <div class="avatar" style="width:36px; height:36px; font-size:14px;" id="chatAvatar">?</div>
-                <div class="chat-header-info">
-                    <h3 id="chatName"></h3>
-                    <span id="chatStatus"></span>
-                </div>
-                <div id="chatSafety" class="fingerprint" style="margin-left:auto; display:none;"
-                    onclick="app.showSafetyInfo()">
-                    <span id="fingerprintValue"></span>
-                </div>
-                <div id="membersToggle" class="btn-settings" style="display:none; font-size:18px;"
-                    onclick="app.toggleMembersList()" title="Участники">👥</div>
-            </div>
+        <div class="input-bar">
+            <input type="text" id="msgInput" placeholder="Ваше сообщение..."
+                onkeypress="if(event.key==='Enter') app.sendMessage()" disabled>
+            <button id="sendBtn" class="btn-send" onclick="app.sendMessage()" disabled>➤</button>
+        </div>
+    </div>
 
-            <div class="chat-main">
-                <div id="messages">
-                    <div class="sys-msg" style="margin-top:auto;">Начните общение, выбрав контакт или добавив по ID
-                    </div>
-                </div>
-
-                <div class="members-sidebar" id="membersSidebar" style="display:none;">
-                    <h4>Участники</h4>
-                    <div id="membersList"></div>
-                </div>
-            </div>
-
-            <div class="input-bar">
-                <input type="text" id="msgInput" placeholder="Ваше сообщение..."
-                    onkeypress="if(event.key==='Enter') app.sendMessage()" disabled>
-                <button id="sendBtn" class="btn-send" onclick="app.sendMessage()" disabled>➤</button>
-            </div>
+    <!-- Empty State -->
+    <div id="emptyChat" class="chat-area empty-state">
+        <div class="chat-header">
+            <h3>Выберите чат</h3>
+        </div>
+        <div
+            style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; padding-bottom:60px;">
+            <div style="font-size: 48px; animation: float 3s ease-in-out infinite;">💬</div>
+            <h2 style="font-size:20px; font-weight:600; color:#e6edf3;">Начните общение</h2>
+            <p style="font-size:13px; color:#8b949e; text-align:center; max-width:280px; line-height:1.5;">Выберите
+                контакт слева или пригласите друга по ссылке</p>
         </div>
 
-        <!-- Empty State -->
-        <div id="emptyChat" class="chat-area empty-state">
-            <div class="chat-header">
-                <h3>Выберите чат</h3>
-            </div>
-            <div
-                style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; padding-bottom:60px;">
-                <div style="font-size: 48px; animation: float 3s ease-in-out infinite;">💬</div>
-                <h2 style="font-size:20px; font-weight:600; color:#e6edf3;">Начните общение</h2>
-                <p style="font-size:13px; color:#8b949e; text-align:center; max-width:280px; line-height:1.5;">Выберите
-                    контакт слева или пригласите друга по ссылке</p>
-            </div>
-
-            <!-- Fake Input Bar for Empty State visual match -->
-            <div class="input-bar" style="opacity:0.5; pointer-events:none;">
-                <input type="text" placeholder="Ваше сообщение..." disabled>
-                <button class="btn-send" disabled>➤</button>
-            </div>
+        <!-- Fake Input Bar for Empty State visual match -->
+        <div class="input-bar" style="opacity:0.5; pointer-events:none;">
+            <input type="text" placeholder="Ваше сообщение..." disabled>
+            <button class="btn-send" disabled>➤</button>
         </div>
+    </div>
     </div>
 
     <!-- Создание группы -->
