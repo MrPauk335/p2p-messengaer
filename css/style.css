@@ -1,18 +1,20 @@
 /* --- Base & Variables --- */
 :root {
-    --bg-darker: #0c0d0f;
-    --bg-dark: #1e1f22;
-    --bg-medium: #2b2d31;
-    --bg-light: #313338;
-    --accent: #5865f2;
-    --accent-hover: #4752c4;
-    --text: #f2f3f5;
-    --text-dim: #b5bac1;
-    --danger: #fa777c;
-    --success: #23a559;
-    --warning: #f0b232;
-    --glass: rgba(255, 255, 255, 0.03);
-    --border: rgba(255, 255, 255, 0.08);
+    --bg-darker: #000000;
+    --bg-dark: #050505;
+    --bg-medium: #0a0a0a;
+    --bg-light: #141414;
+    --accent: #00f3ff;
+    --accent-hover: #00c3cc;
+    --text: #ffffff;
+    --text-dim: #888888;
+    --danger: #ff0055;
+    --success: #00ff66;
+    --warning: #ffcc00;
+    --glass: rgba(0, 243, 255, 0.05);
+    --border: rgba(0, 243, 255, 0.2);
+    --glow: 0 0 10px rgba(0, 243, 255, 0.4);
+    --glow-strong: 0 0 20px rgba(0, 243, 255, 0.6);
 }
 
 * {
@@ -73,6 +75,7 @@ body {
     flex-direction: column;
     flex-shrink: 0;
     border-right: 1px solid var(--border);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
 }
 
 .chat-area {
@@ -91,6 +94,7 @@ body {
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 .avatar {
@@ -139,6 +143,13 @@ body {
     color: var(--text);
     font-size: 13px;
     outline: none;
+    transition: 0.3s;
+    border: 1px solid transparent;
+}
+
+.search-container input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
 }
 
 .contact-list {
@@ -164,8 +175,10 @@ body {
 }
 
 .contact.active {
-    background: var(--bg-light);
+    background: rgba(0, 243, 255, 0.1);
     color: #fff;
+    border-left: 3px solid var(--accent);
+    box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1);
 }
 
 .contact .avatar {
@@ -217,7 +230,7 @@ body {
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--border);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .chat-header h3 {
@@ -298,17 +311,25 @@ body {
 .input-bar {
     padding: 0 20px 20px;
     background: var(--bg-medium);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
 }
 
 .input-bar input {
     width: 100%;
     background: var(--bg-light);
-    border: none;
+    border: 1px solid transparent;
     border-radius: 8px;
     padding: 12px 16px;
     color: var(--text);
     font-size: 15px;
     outline: none;
+    transition: 0.3s;
+}
+
+.input-bar input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
 }
 
 .btn-send {
@@ -326,12 +347,14 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #444;
+    background: #333;
+    border: 1px solid var(--border);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #111;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
 }
 
 /* --- Overlays & Modals --- */
@@ -358,7 +381,8 @@ body {
     border-radius: 12px;
     padding: 24px;
     position: relative;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+    border: 1px solid var(--border);
     overflow-y: auto;
     padding-bottom: 40px;
     /* Spacer for last items */
@@ -378,6 +402,7 @@ body {
 
 .big-input:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
 }
 
 .btn-main {
@@ -390,10 +415,14 @@ body {
     cursor: pointer;
     font-weight: 600;
     transition: 0.2s;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
 }
 
 .btn-main:hover {
     background: var(--accent-hover);
+    box-shadow: 0 0 25px rgba(0, 243, 255, 0.6);
+    transform: translateY(-1px);
 }
 
 /* --- Mobile Fixes --- */
