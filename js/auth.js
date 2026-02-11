@@ -110,10 +110,12 @@ Object.assign(App.prototype, {
 
         const myIdEl = document.getElementById('myIdDisplay');
         if (myIdEl) {
-            const statusDot = (this.peer && !this.peer.disconnected)
-                ? ' <span style="color:var(--accent)">●</span>'
-                : ' <span style="color:var(--danger)">○</span>';
-            myIdEl.innerHTML = this.myId + statusDot;
+            const isOnline = (this.peer && !this.peer.disconnected);
+            const dot = isOnline
+                ? '<span class="id-status-dot"></span>'
+                : '<span class="id-status-dot" style="background:#555; box-shadow:none;"></span>';
+
+            myIdEl.innerHTML = `ID: ${this.myId} ${dot}`;
         }
 
         // FIXED: Use correct ID myAvatarDisplay

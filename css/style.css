@@ -117,9 +117,20 @@ body {
 
 .profile-info small {
     font-size: 11px;
-    color: #666;
+    color: #4a9eff;
     opacity: 1;
     font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.id-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #0084ff;
+    box-shadow: 0 0 5px #0084ff;
 }
 
 .btn-settings {
@@ -230,7 +241,6 @@ body {
     align-items: center;
     gap: 12px;
     border-bottom: none;
-    border-bottom: 1px solid var(--border);
 }
 
 .chat-header h3 {
@@ -392,8 +402,8 @@ body {
     max-height: 85vh;
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    border: 1px solid var(--border);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    border: 1px solid #1a1a1a;
     overflow-y: auto;
     padding-bottom: 40px;
     /* Spacer for last items */
