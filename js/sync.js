@@ -1,4 +1,4 @@
-// Synchronization & P2P Logic
+// Synchronization & P2P Logic (Restored)
 Object.assign(App.prototype, {
     // 1. Discover my other trusted devices
     discoverMyDevices() {
@@ -21,7 +21,7 @@ Object.assign(App.prototype, {
         if (!this.myDevices.includes(peerId) && peerId !== this.peer.id) {
             this.myDevices.push(peerId);
             localStorage.setItem('p2p_my_devices', JSON.stringify(this.myDevices));
-            console.log('Added trusted device:', peerId);
+            console.log('Device trusted:', peerId);
             this.showToast("Новое устройство добавлено в доверенные 🛡️");
         }
     },
@@ -91,7 +91,7 @@ Object.assign(App.prototype, {
         });
 
         conn.on('close', () => {
-            this.logSync("Connection CLOSED");
+            // Cleanup if needed
         });
     },
 
@@ -159,19 +159,24 @@ Object.assign(App.prototype, {
 
     async handleSyncPush(conn) {
         this.addTrustedDevice(conn.peer); // Bidirectional trust
+        document.getElementById('syncSourceStatus').innerText = "Передача данных...";
+
         const data = {
             nick: this.myNick,
             uid: this.myId,
             color: this.myColor,
-            pass: this.myPass,
+            pass: this.myPass, // Hashed pass if relying on it
             secret: this.mySecret,
             contacts: this.contacts,
             history: this.history,
             groups: this.groups,
-            encrypted: !!this.myPass
+            privKey: localStorage.getItem('p2p_priv_key'), // Send Keys so other device can decrypt!
+            pubKey: localStorage.getItem('p2p_pub_key'),
+            tgBound: !!this.isTgBound // Example flag
         };
-        document.getElementById('syncSourceStatus').innerText = "Передача данных...";
+
         conn.send({ type: 'sync_push', payload: data });
+
         setTimeout(() => {
             document.getElementById('sync-overlay').style.display = 'none';
             this.showToast("Синхронизация завершена! ✅");
@@ -237,9 +242,13 @@ Object.assign(App.prototype, {
         if (data.contacts) localStorage.setItem('p2p_contacts', JSON.stringify(data.contacts));
         if (data.history) localStorage.setItem('p2p_history', JSON.stringify(data.history));
         if (data.groups) localStorage.setItem('p2p_groups', JSON.stringify(data.groups));
+
         if (data.privKey) localStorage.setItem('p2p_priv_key', data.privKey);
         if (data.pubKey) localStorage.setItem('p2p_pub_key', data.pubKey);
-        if (data.tgBound) localStorage.setItem('p2p_tg_bound', 'true');
+
+        // Also save encrypted versions if provided
+        // But usually we just reload and let app encrypt on next save? 
+        // For robustness, save what we got.
 
         if (this.tempPeer) {
             this.tempPeer.destroy();

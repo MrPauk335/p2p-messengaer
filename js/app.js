@@ -41,7 +41,12 @@ class App {
         if (savedDevices) this.myDevices = JSON.parse(savedDevices);
 
         // Load Encrypted Data
-        await this.loadEncryptedData();
+        // Now loaded from crypto.js (prototype extension)
+        if (this.loadEncryptedData) {
+            await this.loadEncryptedData();
+        } else {
+            console.error("Critical: loadEncryptedData not found!");
+        }
 
         if (savedNick && savedUid && savedPass) {
             this.myNick = savedNick;
