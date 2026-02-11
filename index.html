@@ -32,8 +32,6 @@
                     style="height:35px; font-size:14px;">Регистрация</button>
                 <button class="btn-main" id="modeLogin" onclick="app.setSetupMode('login')"
                     style="height:35px; font-size:14px; background:#252525;">Вход</button>
-                <button class="btn-main" id="modeSync" onclick="app.startPreLoginSync()"
-                    style="height:35px; font-size:14px; background:#0084ff;">🔄 Синхрон.</button>
             </div>
 
             <p id="setupDesc">Выберите имя, цвет и пароль</p>
@@ -462,8 +460,24 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=1.1" defer></script>
+    <!-- Core & Modules -->
+    <script src="js/app.js?v=1.2"></script>
+    <script src="js/utils.js?v=1.2"></script>
+    <script src="js/crypto.js?v=1.2"></script>
+    <script src="js/auth.js?v=1.2"></script>
+    <script src="js/sync.js?v=1.2"></script>
+    <script src="js/ui.js?v=1.2"></script>
+
+    <!-- Init -->
     <script>
+        // Initialize App instance after all modules are loaded
+        window.app = new App();
+
+        // Load event
+        window.addEventListener('load', () => {
+            app.init();
+        });
+
         // Service Worker only works over HTTP, skip for Electron (file://)
         if ('serviceWorker' in navigator && location.protocol !== 'file:') {
             window.addEventListener('load', () => {
