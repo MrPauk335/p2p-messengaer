@@ -111,11 +111,14 @@ body {
 .profile-info h2 {
     font-size: 14px;
     margin-bottom: 2px;
+    font-weight: 700;
 }
 
 .profile-info small {
     font-size: 11px;
-    color: var(--text-dim);
+    color: #4a9eff;
+    /* Blueish dim color from screenshot */
+    opacity: 0.8;
 }
 
 .btn-settings {
@@ -135,15 +138,14 @@ body {
 
 .search-container input {
     width: 100%;
-    background: var(--bg-darker);
+    background: #101010;
     border: none;
     border-radius: 4px;
     padding: 8px 12px;
     color: var(--text);
     font-size: 13px;
     outline: none;
-    transition: 0.3s;
-    border: 1px solid transparent;
+    transition: 0.2s;
 }
 
 .search-container input:focus {
@@ -441,7 +443,33 @@ body {
     align-items: center;
     justify-content: center;
     text-align: center;
-    opacity: 0.6;
+}
+
+.empty-state h2 {
+    margin-bottom: 8px;
+    font-size: 20px;
+}
+
+.empty-state p {
+    color: #666;
+    font-size: 13px;
+    max-width: 300px;
+    line-height: 1.4;
+}
+
+.empty-state .btn-main {
+    margin-top: 24px !important;
+    background: #151515 !important;
+    border: 1px solid #333 !important;
+    width: auto !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    border-radius: 4px !important;
+}
+
+.empty-state .btn-main:hover {
+    border-color: #666 !important;
+    background: #202020 !important;
 }
 
 .btn-back {
