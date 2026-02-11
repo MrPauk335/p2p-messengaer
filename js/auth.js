@@ -42,10 +42,6 @@ Object.assign(App.prototype, {
         localStorage.setItem('p2p_nick', name);
         localStorage.setItem('p2p_uid', uid);
         localStorage.setItem('p2p_color', color);
-        localStorage.setItem('p2p_pass', await this.hashPass(pass)); // Need hashPass helper? No, usually stored raw/simple hash in local MVP
-        // Wait, original app likely stored plain password for local lock or simple hash. 
-        // Let's assume simple storage for now to unblock, or try to remember.
-        // It was `this.myPass = savedPass;`
         localStorage.setItem('p2p_pass', pass);
 
         // Generate Identity Key for E2EE
@@ -59,17 +55,6 @@ Object.assign(App.prototype, {
         const name = document.getElementById('setupName').value.trim();
         const pass = document.getElementById('setupPass').value;
 
-        // In local P2P app context, "Login" usually means unlocking local data or just setting name/pass for new session if data exists?
-        // Actually, if data exists in localStorage, `init()` already logs us in.
-        // So "Login" screen is for when data is CLEARED or specific "Login" flow?
-        // Ah, `init()` checks `if (savedNick && savedUid && savedPass)`.
-        // If they are missing, we show setup.
-        // "Login" button in setup might be for restoring from backup or just manual entry if we act like a cloud app?
-        // But since we are P2P, "Login" without local data means we need to IMPORT data (Sync).
-        // Or if local data exists but `p2p_pass` check failed?
-
-        // Let's assume standard behavior:
-        // If data exists, check pass.
         const storedPass = localStorage.getItem('p2p_pass');
         const storedNick = localStorage.getItem('p2p_nick');
 
@@ -84,6 +69,15 @@ Object.assign(App.prototype, {
         }
     },
 
+    finishSetup() {
+        const isReg = document.getElementById('modeReg').classList.contains('active');
+        if (isReg) {
+            this.register();
+        } else {
+            this.login();
+        }
+    },
+
     checkHash() {
         const hash = window.location.hash.replace('#', '');
         if (!hash) return;
@@ -92,11 +86,14 @@ Object.assign(App.prototype, {
         const isNew = hash.startsWith('p2p_user_');
 
         if ((isLegacy || isNew) && hash !== this.myId) {
-            // It's a user ID, try to add contact
             if (!this.contacts[hash]) {
-                this.addContact(hash, 'Загрузка...', '#555');
+                if (this.addContact) {
+                    this.addContact(hash, 'Загрузка...', '#555');
+                }
             }
-            this.selectChat(hash);
+            if (this.selectChat) {
+                this.selectChat(hash);
+            }
             history.replaceState(null, null, ' ');
         }
     },
@@ -117,39 +114,72 @@ Object.assign(App.prototype, {
                 ? ' <span style="color:var(--accent)">●</span>'
                 : ' <span style="color:var(--danger)">○</span>';
             myIdEl.innerHTML = this.myId + statusDot;
-
-            // Click to copy
-            myIdEl.onclick = () => {
-                navigator.clipboard.writeText(this.myId);
-                this.showToast("ID скопирован! 📋");
-            };
-            myIdEl.style.cursor = 'pointer';
         }
 
-        const avatarEl = document.getElementById('myAvatar');
+        // FIXED: Use correct ID myAvatarDisplay
+        const avatarEl = document.getElementById('myAvatarDisplay');
         if (avatarEl) {
             avatarEl.innerText = this.myNick[0].toUpperCase();
             avatarEl.style.background = this.myColor;
         }
+
+        // Update lock settings avatar too if exists
+        const lockAvatar = document.getElementById('lockAvatar');
+        if (lockAvatar) {
+            lockAvatar.innerText = this.myNick[0].toUpperCase();
+            lockAvatar.style.background = this.myColor;
+            document.getElementById('lockNick').innerText = "С возвращением, " + this.myNick;
+        }
     },
 
-    logout() {
-        if (confirm("Выйти из профиля? Данные останутся на этом устройстве.")) {
-            // We don't really have a 'logout' state without clearing data in this simple P2P model usually,
-            // unless we use session storage for pass.
-            // But let's just reload.
-            // Or maybe clear a session flag properly?
-            // In `init()`, we check `savedPass`. To "logout", we might need to require pass next time.
-            // For now, strict reload.
+    // Auth Helpers
+    unlock() {
+        const pass = document.getElementById('lockPass').value;
+        if (pass === this.myPass) {
+            document.getElementById('lock-overlay').style.display = 'none';
+        } else {
+            document.getElementById('lockError').innerText = "Неверный пароль";
+        }
+    },
+
+    clearData() {
+        if (confirm("Вы уверены? Весь чат и контакты будут удалены безвозвратно!")) {
+            localStorage.clear();
             location.reload();
         }
     },
 
-    // Missing helper likely used in register
+    copyMyId() {
+        if (this.myId) {
+            navigator.clipboard.writeText(this.myId);
+            this.showToast("ID скопирован! 📋");
+        }
+    },
+
+    updateProfile() {
+        const nick = document.getElementById('editName').value;
+        const pass = document.getElementById('editPass').value;
+        if (nick) {
+            this.myNick = nick; // Use 'this' as it is bound to app instance
+            localStorage.setItem('p2p_nick', nick);
+        }
+        if (pass) {
+            this.myPass = pass;
+            localStorage.setItem('p2p_pass', pass);
+        }
+        this.updateMyProfileUI();
+        this.showToast("Профиль обновлен");
+        document.getElementById('settings-overlay').style.display = 'none';
+    },
+
+    logout(force = false) {
+        if (force || confirm("Выйти из профиля? Данные останутся на этом устройстве.")) {
+            location.reload();
+        }
+    },
+
+    // Generate Identity Key Helper
     async generateIdentityKey() {
-        // ... (implementation to be verified in crypto.js, calling it here implies we need it)
-        // Actually, crypto.js should have `generateKeyPair`.
-        // We need to save it.
         const keyPair = await window.crypto.subtle.generateKey(
             { name: "ECDH", namedCurve: "P-256" },
             true,
@@ -157,11 +187,43 @@ Object.assign(App.prototype, {
         );
         this.identityKeyPair = keyPair;
 
-        // Export and save
         const exportedPriv = await window.crypto.subtle.exportKey("jwk", keyPair.privateKey);
         const exportedPub = await window.crypto.subtle.exportKey("jwk", keyPair.publicKey);
 
         localStorage.setItem('p2p_priv_key', JSON.stringify(exportedPriv));
         localStorage.setItem('p2p_pub_key', JSON.stringify(exportedPub));
+    },
+
+    // Stubs
+    setLogin2fa() { },
+    requestLoginTg() { },
+    show2faStep() { },
+    verifySecret() { },
+    requestTg2fa() { },
+    verifyTg2fa() { },
+    toggleIpCheck() { },
+    toggleTg() { },
+    startTgPairing() { },
+    unlinkTg() { },
+    toggleIncognito() { },
+    setBurnTimer() { },
+    promptInstall() {
+        // Simple prompt logic usually involves capturing the install event
+        this.showToast("Функция установки недоступна");
+    },
+    exportData() {
+        // Simple export
+        const data = {
+            nick: this.myNick,
+            contacts: this.contacts,
+            groups: this.groups,
+            history: this.history
+        };
+        const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "messenger_backup.json";
+        a.click();
     }
 });

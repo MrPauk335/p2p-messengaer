@@ -144,7 +144,6 @@ Object.assign(App.prototype, {
         if (!silent) this.broadcastSync();
     },
 
-    // Load Encrypted Data (Moved from app.js)
     async loadEncryptedData() {
         const cEnc = localStorage.getItem('p2p_contacts_enc');
         const hEnc = localStorage.getItem('p2p_history_enc');
@@ -174,5 +173,13 @@ Object.assign(App.prototype, {
             const old = localStorage.getItem('p2p_history');
             if (old) this.history = JSON.parse(old);
         }
+    },
+
+    saveContacts(silent = false) {
+        this.saveMsgMigration(silent);
+    },
+
+    saveGroups(silent = false) {
+        this.saveMsgMigration(silent);
     }
 });

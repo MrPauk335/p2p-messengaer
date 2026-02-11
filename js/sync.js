@@ -194,6 +194,10 @@ Object.assign(App.prototype, {
         document.getElementById('syncTargetStatus').innerText = "Введите Source ID с другого устройства";
     },
 
+    importData() {
+        this.startPreLoginSync();
+    },
+
     async initTempPeerForSync() {
         return new Promise((resolve) => {
             const tempId = 'sync_temp_' + Math.random().toString(36).substr(2, 8);
