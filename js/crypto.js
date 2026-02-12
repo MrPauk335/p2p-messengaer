@@ -105,6 +105,40 @@ Object.assign(App.prototype, {
         }
     },
 
+    // 7. Handshake Orchestration
+    async initiateHandshake(peerId) {
+        const conn = this.connections[peerId];
+        if (!conn || !conn.open) return;
+
+        console.log('[E2EE] Initiating handshake with:', peerId);
+        const myPubKey = await this.exportPublicKey();
+        if (myPubKey) {
+            conn.send({ type: 'handshake', publicKey: myPubKey });
+        }
+    },
+
+    async handleHandshake(peerId, peerPubKeyJwk) {
+        console.log('[E2EE] Handling handshake from:', peerId);
+        try {
+            const peerPubKey = await this.importPublicKey(peerPubKeyJwk);
+            const sharedSecret = await this.deriveSharedSecret(peerPubKey);
+
+            if (sharedSecret) {
+                this.sessionSecrets[peerId] = sharedSecret;
+                console.log('[E2EE] Session established with:', peerId);
+
+                // If we don't have their public key recorded yet (or just to be safe),
+                // we might need to send ours back if we haven't already.
+                // But usually handleConnection triggers initiateHandshake for both sides.
+                // However, the second peer to join might receive a handshake before their own initiateHandshake sends.
+
+                this.updateChatHeader(); // Update UI to show 🔒
+            }
+        } catch (e) {
+            console.error('[E2EE] Handshake failed:', e);
+        }
+    },
+
     // Internal Encryption for Local Data (using password)
     async encrypt(data) {
         if (!this.myPass) return null;

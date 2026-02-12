@@ -106,6 +106,7 @@ Object.assign(App.prototype, {
     updateChatHeader() {
         const headerName = document.getElementById('chatName');
         const headerStatus = document.getElementById('chatStatus');
+        const headerAvatar = document.getElementById('chatAvatar');
         const id = this.activeChatId;
 
         if (this.groups[id]) {
@@ -116,7 +117,11 @@ Object.assign(App.prototype, {
 
         const contact = this.contacts[id];
         if (contact) {
-            headerName.innerText = contact.name;
+            headerName.innerText = contact.name || id;
+            if (headerAvatar) {
+                headerAvatar.innerText = (contact.name || id)[0].toUpperCase();
+                headerAvatar.style.background = contact.color || 'var(--accent)';
+            }
             const isOnline = this.connections[id] && this.connections[id].open;
 
             if (isOnline) {

@@ -174,6 +174,9 @@ class App {
                     color: this.myColor
                 }
             });
+
+            // Initiate E2EE Handshake
+            this.initiateHandshake(conn.peer);
         });
 
         conn.on('data', async (data) => {
@@ -197,6 +200,8 @@ class App {
                         if (this.activeChatId === conn.peer) this.updateChatHeader();
                     }
                 }
+            } else if (data.type === 'handshake') {
+                await this.handleHandshake(conn.peer, data.publicKey);
             } else if (data.type === 'msg') {
                 // Decrypt if needed
                 let text = data.text;
