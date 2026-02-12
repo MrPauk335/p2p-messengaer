@@ -63,6 +63,17 @@ Object.assign(App.prototype, {
         this.updateChatHeader();
         this.renderHistory(id);
         this.refreshContacts();
+
+        // Enable and Focus input
+        const input = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+        if (input) {
+            input.disabled = false;
+            input.focus();
+        }
+        if (sendBtn) {
+            sendBtn.disabled = false;
+        }
     },
 
     // Mobile Back Button / Sidebar Toggle
