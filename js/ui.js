@@ -153,6 +153,9 @@ Object.assign(App.prototype, {
         this.updateEncryptionStatus();
 
         // Sync UI with State
+        const nameInput = document.getElementById('editName');
+        if (nameInput) nameInput.value = this.myNick || '';
+
         const incognitoCheck = document.getElementById('settingIncognito');
         if (incognitoCheck) incognitoCheck.checked = this.incognitoMode;
 
