@@ -1,12 +1,17 @@
-const DEVICE_SUFFIX = Math.random().toString(36).substr(2, 4);
-
 class App {
     constructor() {
         this.peer = null;
         this.tempPeer = null; // For pre-login sync
         this.connections = {};
         this.myId = '';
-        this.deviceSuffix = DEVICE_SUFFIX;
+
+        // Persistent Device Suffix for stable Peer IDs
+        let savedSuffix = localStorage.getItem('p2p_device_suffix');
+        if (!savedSuffix) {
+            savedSuffix = Math.random().toString(36).substr(2, 4);
+            localStorage.setItem('p2p_device_suffix', savedSuffix);
+        }
+        this.deviceSuffix = savedSuffix;
 
         // Data Store
         this.contacts = {};

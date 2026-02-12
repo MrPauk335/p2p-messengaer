@@ -115,7 +115,9 @@ Object.assign(App.prototype, {
                 ? '<span class="id-status-dot"></span>'
                 : '<span class="id-status-dot" style="background:#555; box-shadow:none;"></span>';
 
-            myIdEl.innerHTML = `ID: ${this.myId} ${dot}`;
+            // Show ACTUAL Peer ID (full) for sharing
+            const actualId = (this.peer && this.peer.id) ? this.peer.id : this.myId;
+            myIdEl.innerHTML = `ID: ${actualId} ${dot}`;
         }
 
         // FIXED: Use correct ID myAvatarDisplay
