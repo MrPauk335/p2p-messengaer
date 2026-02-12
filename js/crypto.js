@@ -141,26 +141,21 @@ Object.assign(App.prototype, {
 
     // Internal Encryption for Local Data (using password)
     async encrypt(data) {
-        if (!this.myPass) return null;
-        // Simple key derivation from pass (PBKDF2 would be better, but assuming simple SHA-256 hash or similar as key for now)
-        // For MVP compatibility:
-        // If data is object, stringify.
-        const str = JSON.stringify(data);
-        return str; // Placeholder for now if we didn't implement robust local encryption in prev version.
-        // Wait, app.js logic had `loadEncryptedData`.
-        // If `this.myPass` was set, we used it?
-        // Let's assume cleartext for local storage unless we strictly recall the implementation.
-        // The previous code had `saveMsgMigration` calling `this.encrypt(this.history)`.
-
-        // Let's implement a basic one to avoid crashing.
-        return btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+        try {
+            const str = JSON.stringify(data);
+            return btoa(unescape(encodeURIComponent(str)));
+        } catch (e) {
+            console.error("Encryption (Base64) failed:", e);
+            return null;
+        }
     },
 
-    async decrypt(encryptedStr) {
-        if (!encryptedStr) return null;
+    async decrypt(str) {
+        if (!str || str === "null") return null;
         try {
-            return JSON.parse(decodeURIComponent(escape(atob(encryptedStr))));
+            return JSON.parse(decodeURIComponent(escape(atob(str))));
         } catch (e) {
+            console.error("Decryption (Base64) failed:", e);
             return null;
         }
     },
@@ -183,30 +178,32 @@ Object.assign(App.prototype, {
         const hEnc = localStorage.getItem('p2p_history_enc');
         const gEnc = localStorage.getItem('p2p_groups_enc');
 
-        if (cEnc) {
-            const dec = await this.decrypt(cEnc);
-            if (dec) this.contacts = dec;
-        } else {
-            // Migration
-            const old = localStorage.getItem('p2p_contacts');
-            if (old) this.contacts = JSON.parse(old);
-        }
+        // Helper to load with fallback
+        const loadWithFallback = async (encKey, oldKey, target) => {
+            let loaded = null;
+            if (encKey) {
+                loaded = await this.decrypt(encKey);
+            }
+            if (!loaded || Object.keys(loaded).length === 0) {
+                const old = localStorage.getItem(oldKey);
+                if (old) {
+                    try {
+                        loaded = JSON.parse(old);
+                        console.log(`Restored ${target} from old storage`);
+                    } catch (e) { }
+                }
+            }
+            return loaded;
+        };
 
-        if (gEnc) {
-            const dec = await this.decrypt(gEnc);
-            if (dec) this.groups = dec;
-        } else {
-            const old = localStorage.getItem('p2p_groups');
-            if (old) this.groups = JSON.parse(old);
-        }
+        const contacts = await loadWithFallback(cEnc, 'p2p_contacts', 'contacts');
+        if (contacts) this.contacts = contacts;
 
-        if (hEnc) {
-            const dec = await this.decrypt(hEnc);
-            if (dec) this.history = dec;
-        } else {
-            const old = localStorage.getItem('p2p_history');
-            if (old) this.history = JSON.parse(old);
-        }
+        const groups = await loadWithFallback(gEnc, 'p2p_groups', 'groups');
+        if (groups) this.groups = groups;
+
+        const history = await loadWithFallback(hEnc, 'p2p_history', 'history');
+        if (history) this.history = history;
     },
 
     saveContacts(silent = false) {
