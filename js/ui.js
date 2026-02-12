@@ -191,6 +191,21 @@ Object.assign(App.prototype, {
 
         const ipCheck = document.getElementById('settingIpCheck');
         if (ipCheck) ipCheck.checked = this.ipCheckEnabled;
+
+        // Connectivity Sync
+        const hostIn = document.getElementById('connHost');
+        if (hostIn) hostIn.value = this.connSettings.host || '';
+        const portIn = document.getElementById('connPort');
+        if (portIn) portIn.value = this.connSettings.port || '';
+        const pathIn = document.getElementById('connPath');
+        if (pathIn) pathIn.value = this.connSettings.path || '/';
+        const secureIn = document.getElementById('connSecure');
+        if (secureIn) secureIn.checked = this.connSettings.secure;
+        const iceIn = document.getElementById('connIce');
+        if (iceIn) {
+            iceIn.value = this.connSettings.ice || '';
+            iceIn.placeholder = '[{"urls":"stun:stun.l.google.com:19302"}, ...]';
+        }
     },
 
     updateEncryptionStatus() {

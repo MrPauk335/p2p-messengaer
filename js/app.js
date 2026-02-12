@@ -31,6 +31,15 @@ class App {
         this.notificationsEnabled = localStorage.getItem('p2p_notifications') === 'true';
         this.ipCheckEnabled = localStorage.getItem('p2p_ip_check') === 'true';
 
+        // Connectivity Override
+        this.connSettings = {
+            host: localStorage.getItem('p2p_conn_host') || '',
+            port: localStorage.getItem('p2p_conn_port') || '',
+            path: localStorage.getItem('p2p_conn_path') || '/',
+            secure: localStorage.getItem('p2p_conn_secure') !== 'false', // default true
+            ice: localStorage.getItem('p2p_conn_ice') || ''
+        };
+
         // E2EE
         this.identityKeyPair = null;
         this.sessionSecrets = {}; // peerId -> CryptoKey
@@ -111,22 +120,45 @@ class App {
         const connectionId = `${this.myId}_dev_${this.deviceSuffix}`;
         console.log('Connecting with ID:', connectionId);
 
-        this.peer = new Peer(connectionId, {
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun3.l.google.com:19302' },
-                    { urls: 'stun:stun4.l.google.com:19302' },
-                    { urls: 'stun:stun.l.google.com:19305' },
-                    { urls: 'stun:stun.voipstunt.com' },
-                    { urls: 'stun:stun.ekiga.net' }
-                ],
-                iceCandidatePoolSize: 10
-            },
+        const peerOptions = {
             debug: 1
-        });
+        };
+
+        // Apply custom signaling if host is set
+        if (this.connSettings.host) {
+            peerOptions.host = this.connSettings.host;
+            if (this.connSettings.port) peerOptions.port = parseInt(this.connSettings.port);
+            if (this.connSettings.path) peerOptions.path = this.connSettings.path;
+            peerOptions.secure = this.connSettings.secure;
+        }
+
+        // Apply custom ICE or defaults
+        let iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' },
+            { urls: 'stun:stun.l.google.com:19305' },
+            { urls: 'stun:stun.voipstunt.com' },
+            { urls: 'stun:stun.ekiga.net' }
+        ];
+
+        if (this.connSettings.ice) {
+            try {
+                const customIce = JSON.parse(this.connSettings.ice);
+                if (Array.isArray(customIce)) iceServers = customIce;
+            } catch (e) {
+                console.error("Invalid custom ICE config:", e);
+            }
+        }
+
+        peerOptions.config = {
+            iceServers: iceServers,
+            iceCandidatePoolSize: 10
+        };
+
+        this.peer = new Peer(connectionId, peerOptions);
 
         this.peer.on('error', (err) => {
             console.error('PeerJS Error:', err);

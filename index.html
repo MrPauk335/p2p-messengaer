@@ -275,11 +275,40 @@
                         onclick="app.promptInstall()">Установить Messenger</button>
                 </div>
 
+                <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+                    <h3 style="font-size:14px; margin-bottom:10px;">🌐 Настройки соединения</h3>
+                    <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Позволяет обойти блокировки
+                        PeerJS (нужен свой сервер сигналов).</p>
+
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <input type="text" id="connHost" placeholder="Signaling Host (напр. peerjs.com)"
+                            class="big-input" style="font-size:12px;">
+                        <div style="display:flex; gap:8px;">
+                            <input type="number" id="connPort" placeholder="Port" class="big-input"
+                                style="font-size:12px; flex:1;">
+                            <input type="text" id="connPath" placeholder="Path" class="big-input"
+                                style="font-size:12px; flex:1;">
+                        </div>
+                        <label class="switch-item"
+                            style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                            <span style="font-size:12px;">Использовать HTTPS</span>
+                            <input type="checkbox" id="connSecure">
+                        </label>
+
+                        <p style="font-size:11px; color:var(--text-dim); margin-top:5px;">STUN/TURN Серверы (JSON):</p>
+                        <textarea id="connIce"
+                            style="background:#1a1a1a; color:#fff; border:1px solid var(--border); border-radius:10px; padding:10px; font-size:11px; font-family:monospace; height:80px;"></textarea>
+
+                        <button class="btn-main" style="background:var(--accent); font-size:13px;"
+                            onclick="app.applyConnectionSettings()">Применить и переподключиться</button>
+                    </div>
+                </div>
+
                 <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px; opacity:0.8;">
-                    <h3 style="font-size:14px; margin-bottom:10px;">🌐 Проблемы с связью?</h3>
+                    <h3 style="font-size:14px; margin-bottom:10px;">❓ Проблемы с связью?</h3>
                     <p style="font-size:11px; color:var(--text-dim); line-height:1.4;">
-                        P2P соединение может блокироваться провайдером или фаерволом. Если не удается написать другу в
-                        другую страну, попробуйте сменить сеть (например, на мобильный интернет).
+                        P2P соединение может блокироваться провайдером. Если не удается найти друга, попробуйте сменить
+                        сеть или использовать свои серверы сигналов выше.
                     </p>
                 </div>
             </div>
@@ -466,12 +495,12 @@
     </div>
 
     <!-- Core & Modules -->
-    <script src="js/app.js?v=3.9"></script>
-    <script src="js/utils.js?v=3.9"></script>
-    <script src="js/crypto.js?v=3.9"></script>
-    <script src="js/auth.js?v=3.9"></script>
-    <script src="js/sync.js?v=3.9"></script>
-    <script src="js/ui.js?v=3.9"></script>
+    <script src="js/app.js?v=4.0"></script>
+    <script src="js/utils.js?v=4.0"></script>
+    <script src="js/crypto.js?v=4.0"></script>
+    <script src="js/auth.js?v=4.0"></script>
+    <script src="js/sync.js?v=4.0"></script>
+    <script src="js/ui.js?v=4.0"></script>
 
     <!-- Init -->
     <script>
