@@ -251,8 +251,8 @@ Object.assign(App.prototype, {
             delete this.groups[gid];
             this.saveGroups();
             this.activeChatId = null;
-            document.getElementById('welcome-screen').style.display = 'flex';
-            document.getElementById('chat-screen').style.display = 'none';
+            document.getElementById('emptyChat').style.display = 'flex';
+            document.getElementById('chatArea').style.display = 'none';
             this.refreshContacts();
         }
     },

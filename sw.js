@@ -1,4 +1,4 @@
-const CACHE_NAME = 'p2p-messenger-v2.5';
+const CACHE_NAME = 'p2p-messenger-v2.6';
 const ASSETS = [
     './',
     './index.html',

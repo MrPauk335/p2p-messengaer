@@ -81,8 +81,18 @@ class App {
         history.pushState(null, null, location.href);
         window.onpopstate = () => {
             if (this.activeChatId) {
-                document.getElementById('chat-screen').style.display = 'none';
-                document.getElementById('welcome-screen').style.display = 'flex';
+                document.getElementById('chatArea').style.display = 'none';
+                // On mobile "Back", we show sidebar (which is default visible on desktop)
+                // But if we are in "mobile view", sidebar is hidden when chat is open.
+                // toggleSidebar() handles showing sidebar.
+                // But here we want to reset state.
+                const sidebar = document.getElementById('sidebar');
+                if (window.innerWidth <= 768) {
+                    sidebar.style.display = 'flex';
+                }
+                const empty = document.getElementById('emptyChat');
+                if (empty) empty.style.display = 'flex'; // Show empty state
+
                 this.activeChatId = null;
                 history.pushState(null, null, location.href);
             }
@@ -150,10 +160,39 @@ class App {
                 this.updateChatHeader();
                 this.refreshContacts(); // update online status dot
             }
+
+            // Send my profile info eagerly
+            conn.send({
+                type: 'profile',
+                info: {
+                    name: this.myNick,
+                    color: this.myColor
+                }
+            });
         });
 
         conn.on('data', async (data) => {
-            if (data.type === 'msg') {
+            if (data.type === 'profile') {
+                // Update Contact Info
+                if (data.info) {
+                    if (!this.contacts[conn.peer]) {
+                        // Create partial contact if not exists (e.g. they added me, I didn't add them yet)
+                        // But usually we only add specific contacts.
+                        // If we are connected, it means we accepted connection?
+                        // PeerJS accepts all connections by default.
+                        // So we might receive profile from stranger.
+                        // We should probably NOT add them automatically unless we want to?
+                        // But for "Loading..." case, we HAVE them in contacts (via Hash add).
+                    }
+                    if (this.contacts[conn.peer]) {
+                        this.contacts[conn.peer].name = data.info.name || this.contacts[conn.peer].name;
+                        this.contacts[conn.peer].color = data.info.color || this.contacts[conn.peer].color;
+                        this.saveContacts();
+                        this.refreshContacts();
+                        if (this.activeChatId === conn.peer) this.updateChatHeader();
+                    }
+                }
+            } else if (data.type === 'msg') {
                 // Decrypt if needed
                 let text = data.text;
                 if (data.encrypted) {
