@@ -20,9 +20,11 @@ class App {
         this.myPass = ''; // Hashed password
         this.mySecret = ''; // 2FA Secret
         this.is2faEnabled = false;
+        this.is2faEnabled = false;
         this.incognitoMode = localStorage.getItem('p2p_incognito') === 'true';
         this.burnTimer = parseInt(localStorage.getItem('p2p_burn_timer') || '0');
         this.notificationsEnabled = localStorage.getItem('p2p_notifications') === 'true';
+        this.ipCheckEnabled = localStorage.getItem('p2p_ip_check') === 'true';
 
         // E2EE
         this.identityKeyPair = null;

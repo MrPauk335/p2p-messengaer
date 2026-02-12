@@ -242,6 +242,20 @@ Object.assign(App.prototype, {
         }
         localStorage.setItem('p2p_notifications', this.notificationsEnabled);
     },
+
+    toggleIpCheck(checked) {
+        localStorage.setItem('p2p_ip_check', checked);
+        this.showToast(checked ? "🛡️ Проверка IP включена" : "⚠️ Проверка IP отключена");
+    },
+
+    // Stubs for Telegram/Other unimplemented features to prevent crash
+    startTgPairing() { this.showToast("Функция временно недоступна (нет сервера)"); },
+    verifyTg2fa() { this.showToast("Функция временно недоступна"); },
+    show2faStep() { },
+    verifySecret() { },
+    unlinkTg() { this.showToast("Нечего отключать"); },
+    requestTg2fa() { },
+
     promptInstall() {
         // Simple prompt logic usually involves capturing the install event
         this.showToast("Функция установки недоступна");

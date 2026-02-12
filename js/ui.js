@@ -164,6 +164,9 @@ Object.assign(App.prototype, {
 
         const notifCheck = document.getElementById('settingTgEnabled');
         if (notifCheck) notifCheck.checked = this.notificationsEnabled;
+
+        const ipCheck = document.getElementById('settingIpCheck');
+        if (ipCheck) ipCheck.checked = this.ipCheckEnabled;
     },
 
     updateEncryptionStatus() {
