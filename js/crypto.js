@@ -127,15 +127,47 @@ Object.assign(App.prototype, {
                 this.sessionSecrets[peerId] = sharedSecret;
                 console.log('[E2EE] Session established with:', peerId);
 
-                // If we don't have their public key recorded yet (or just to be safe),
-                // we might need to send ours back if we haven't already.
-                // But usually handleConnection triggers initiateHandshake for both sides.
-                // However, the second peer to join might receive a handshake before their own initiateHandshake sends.
+                // Persist this session key
+                await this.saveSessionSecret(peerId, sharedSecret);
 
                 this.updateChatHeader(); // Update UI to show 🔒
             }
         } catch (e) {
             console.error('[E2EE] Handshake failed:', e);
+        }
+    },
+
+    async saveSessionSecret(peerId, cryptoKey) {
+        try {
+            const exported = await window.crypto.subtle.exportKey("jwk", cryptoKey);
+            const stored = localStorage.getItem('p2p_session_keys');
+            const keys = stored ? JSON.parse(stored) : {};
+            keys[peerId] = exported;
+            localStorage.setItem('p2p_session_keys', JSON.stringify(keys));
+        } catch (e) {
+            console.error("Failed to save session secret:", e);
+        }
+    },
+
+    async loadSessionSecrets() {
+        const stored = localStorage.getItem('p2p_session_keys');
+        if (!stored) return;
+        try {
+            const keys = JSON.parse(stored);
+            for (const peerId in keys) {
+                try {
+                    const imported = await window.crypto.subtle.importKey(
+                        "jwk", keys[peerId],
+                        { name: "AES-GCM", length: 256 },
+                        true, ["encrypt", "decrypt"]
+                    );
+                    this.sessionSecrets[peerId] = imported;
+                } catch (e) {
+                    console.error(`Failed to import session key for ${peerId}:`, e);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load session secrets:", e);
         }
     },
 
@@ -204,6 +236,9 @@ Object.assign(App.prototype, {
 
         const history = await loadWithFallback(hEnc, 'p2p_history', 'history');
         if (history) this.history = history;
+
+        // Load Session Keys
+        await this.loadSessionSecrets();
     },
 
     saveContacts(silent = false) {
