@@ -266,7 +266,8 @@ Object.assign(App.prototype, {
 
     // UI Event Handlers
     shareInvite() {
-        const url = `${window.location.origin}${window.location.pathname}#${this.myId}`;
+        const fullId = (this.peer && this.peer.id) ? this.peer.id : this.myId;
+        const url = `${window.location.origin}${window.location.pathname}#${fullId}`;
         if (navigator.share) {
             navigator.share({
                 title: 'Мессенджер P2P',

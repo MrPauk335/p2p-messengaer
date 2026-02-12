@@ -159,8 +159,9 @@ Object.assign(App.prototype, {
     },
 
     copyMyId() {
-        if (this.myId) {
-            navigator.clipboard.writeText(this.myId);
+        const fullId = (this.peer && this.peer.id) ? this.peer.id : this.myId;
+        if (fullId) {
+            navigator.clipboard.writeText(fullId);
             this.showToast("ID скопирован! 📋");
         }
     },
