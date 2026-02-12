@@ -20,6 +20,9 @@ class App {
         this.myPass = ''; // Hashed password
         this.mySecret = ''; // 2FA Secret
         this.is2faEnabled = false;
+        this.incognitoMode = localStorage.getItem('p2p_incognito') === 'true';
+        this.burnTimer = parseInt(localStorage.getItem('p2p_burn_timer') || '0');
+        this.notificationsEnabled = localStorage.getItem('p2p_notifications') === 'true';
 
         // E2EE
         this.identityKeyPair = null;
@@ -175,15 +178,19 @@ class App {
     async saveMsg(id, text, side, senderId = null, silent = false) {
         if (!this.history[id]) this.history[id] = [];
 
-        this.history[id].push({
+        const msgObj = {
             text: text,
             side: side,
             senderId: senderId,
             timestamp: Date.now()
-        });
+        };
 
-        // Save Encrypted
-        await this.saveMsgMigration(silent);
+        this.history[id].push(msgObj);
+
+        // Save Encrypted (only if NOT Incognito)
+        if (!this.incognitoMode) {
+            await this.saveMsgMigration(silent);
+        }
 
         if (this.activeChatId === id) {
             this.renderHistory(id);
@@ -192,16 +199,41 @@ class App {
             if (container) container.scrollTop = container.scrollHeight;
         } else if (side === 'them' && !silent) {
             this.showToast(`Сообщение от ${this.contacts[id] ? this.contacts[id].name : id}`);
+            this.sendNotification(this.contacts[id] ? this.contacts[id].name : 'Новое сообщение', text);
         }
 
         if (this.contacts[id]) {
             this.contacts[id].last = (side === 'me' ? 'Вы: ' : '') + text;
-            this.saveContacts(silent);
+            if (!this.incognitoMode) this.saveContacts(silent);
             this.refreshContacts();
         } else if (this.groups[id]) {
             this.groups[id].last = text;
-            this.saveGroups(silent);
+            if (!this.incognitoMode) this.saveGroups(silent);
             this.refreshContacts();
+        }
+
+        // Burn Timer Logic
+        if (this.burnTimer > 0) {
+            setTimeout(() => {
+                // Remove from memory
+                if (this.history[id]) {
+                    const idx = this.history[id].indexOf(msgObj);
+                    if (idx > -1) {
+                        this.history[id].splice(idx, 1);
+                        // Update UI if active
+                        if (this.activeChatId === id) this.renderHistory(id);
+                        // Save changes (if not incognito) to remove from disk
+                        if (!this.incognitoMode) this.saveMsgMigration(true);
+                    }
+                }
+            }, this.burnTimer * 1000);
+        }
+    }
+
+    sendNotification(title, body) {
+        if (!this.notificationsEnabled) return;
+        if (Notification.permission === 'granted') {
+            new Notification(title, { body: body, icon: 'icon.png' });
         }
     }
 

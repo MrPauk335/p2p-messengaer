@@ -196,19 +196,52 @@ Object.assign(App.prototype, {
         localStorage.setItem('p2p_pub_key', JSON.stringify(exportedPub));
     },
 
-    // Stubs
-    setLogin2fa() { },
-    requestLoginTg() { },
-    show2faStep() { },
-    verifySecret() { },
-    requestTg2fa() { },
-    verifyTg2fa() { },
-    toggleIpCheck() { },
-    toggleTg() { },
-    startTgPairing() { },
-    unlinkTg() { },
-    toggleIncognito() { },
-    setBurnTimer() { },
+    // Security & Settings
+    toggleIncognito(checked) {
+        this.incognitoMode = checked;
+        localStorage.setItem('p2p_incognito', checked);
+        this.showToast(checked ? "🕵️ Режим Инкогнито ВКЛ" : "🕵️ Режим Инкогнито ВЫКЛ");
+    },
+
+    setBurnTimer(seconds) {
+        this.burnTimer = parseInt(seconds);
+        localStorage.setItem('p2p_burn_timer', seconds);
+        if (seconds > 0) {
+            this.showToast(`🔥 Сообщения исчезнут через ${seconds} сек`);
+        } else {
+            this.showToast("🔥 Таймер удаления отключен");
+        }
+    },
+
+    toggleTg(checked) {
+        if (checked) {
+            if (Notification.permission === 'granted') {
+                this.notificationsEnabled = true;
+                this.showToast("🔔 Уведомления включены");
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        this.notificationsEnabled = true;
+                        this.showToast("🔔 Уведомления включены");
+                    } else {
+                        this.notificationsEnabled = false;
+                        document.getElementById('settingTgEnabled').checked = false;
+                        this.showToast("❌ Доступ к уведомлениям запрещен");
+                    }
+                    localStorage.setItem('p2p_notifications', this.notificationsEnabled);
+                });
+                return; // Check logic async
+            } else {
+                this.notificationsEnabled = false;
+                document.getElementById('settingTgEnabled').checked = false;
+                this.showToast("❌ Уведомления заблокированы в браузере");
+            }
+        } else {
+            this.notificationsEnabled = false;
+            this.showToast("🔕 Уведомления выключены");
+        }
+        localStorage.setItem('p2p_notifications', this.notificationsEnabled);
+    },
     promptInstall() {
         // Simple prompt logic usually involves capturing the install event
         this.showToast("Функция установки недоступна");

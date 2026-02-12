@@ -151,6 +151,16 @@ Object.assign(App.prototype, {
         overlay.style.display = 'flex';
         if (modal) modal.scrollTop = 0;
         this.updateEncryptionStatus();
+
+        // Sync UI with State
+        const incognitoCheck = document.getElementById('settingIncognito');
+        if (incognitoCheck) incognitoCheck.checked = this.incognitoMode;
+
+        const burnSelect = document.getElementById('settingBurn');
+        if (burnSelect) burnSelect.value = this.burnTimer;
+
+        const notifCheck = document.getElementById('settingTgEnabled');
+        if (notifCheck) notifCheck.checked = this.notificationsEnabled;
     },
 
     updateEncryptionStatus() {
