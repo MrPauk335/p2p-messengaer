@@ -67,19 +67,27 @@ Object.assign(App.prototype, {
 
     // Mobile Back Button / Sidebar Toggle
     toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const chatArea = document.getElementById('chatArea');
+        const backdrop = document.getElementById('sidebar-backdrop');
+
         if (window.innerWidth <= 768) {
-            // "Back" action on mobile
-            document.getElementById('sidebar').style.display = 'flex';
-            document.getElementById('chatArea').style.display = 'none';
-            this.activeChatId = null;
+            // Mobile: If chat is open, "Back" hides chat and shows sidebar
+            if (chatArea && chatArea.style.display !== 'none') {
+                chatArea.style.display = 'none';
+                sidebar.style.display = 'flex';
+                this.activeChatId = null;
+                return;
+            }
+        }
+
+        // General: Toggle active class
+        if (sidebar.classList.contains('active')) {
+            sidebar.classList.remove('active');
+            if (backdrop) backdrop.style.display = 'none';
         } else {
-            // Desktop sidebar toggle (if we want it collapsible?)
-            // For now, classic interface usually keeps sidebar open.
-            // Maybe just ignore or toggle width?
-            // User requested "Old Interface", which usually has static sidebar.
-            // Let's keep it simple: do nothing or just toggle sidebar?
-            // Implementation in index.html for desktop back button is hidden via CSS (.btn-back { display: none }).
-            // So this is only called on mobile.
+            sidebar.classList.add('active');
+            if (backdrop) backdrop.style.display = 'block';
         }
     },
 
@@ -177,19 +185,7 @@ Object.assign(App.prototype, {
         }
     },
 
-    toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const backdrop = document.getElementById('sidebar-backdrop');
-        const isActive = sidebar.classList.contains('active');
 
-        if (isActive) {
-            sidebar.classList.remove('active');
-            backdrop.style.display = 'none';
-        } else {
-            sidebar.classList.add('active');
-            backdrop.style.display = 'block';
-        }
-    },
 
     // --- Contact & Group Management ---
 

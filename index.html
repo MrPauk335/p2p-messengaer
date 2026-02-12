@@ -9,8 +9,8 @@
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22><stop offset=%220%22 stop-color=%22%230084ff%22/><stop offset=%221%22 stop-color=%22%23b300ff%22/></linearGradient></defs><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22url(%23g)%22/><path d=%22M30 40 L50 60 L70 40 M30 55 L50 75 L70 55%22 stroke=%22white%22 stroke-width=%228%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=2.7">
-    <link rel="manifest" href="manifest.json?v=2.7">
+    <link rel="stylesheet" href="css/style.css?v=2.8">
+    <link rel="manifest" href="manifest.json?v=2.8">
     <meta name="theme-color" content="#0a0a0a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -354,62 +354,61 @@
             </div>
 
         </div>
-    </div>
 
-    <div class="chat-area" id="chatArea" style="display: none;">
-        <div class="chat-header">
-            <div class="btn-back" onclick="app.toggleSidebar()">⬅️</div>
-            <div class="avatar" style="width:36px; height:36px; font-size:14px;" id="chatAvatar">?</div>
-            <div class="chat-header-info">
-                <h3 id="chatName"></h3>
-                <span id="chatStatus"></span>
+        <div class="chat-area" id="chatArea" style="display: none;">
+            <div class="chat-header">
+                <div class="btn-back" onclick="app.toggleSidebar()">⬅️</div>
+                <div class="avatar" style="width:36px; height:36px; font-size:14px;" id="chatAvatar">?</div>
+                <div class="chat-header-info">
+                    <h3 id="chatName"></h3>
+                    <span id="chatStatus"></span>
+                </div>
+                <div id="chatSafety" class="fingerprint" style="margin-left:auto; display:none;"
+                    onclick="app.showSafetyInfo()">
+                    <span id="fingerprintValue"></span>
+                </div>
+                <div id="membersToggle" class="btn-settings" style="display:none; font-size:18px;"
+                    onclick="app.toggleMembersList()" title="Участники">👥</div>
             </div>
-            <div id="chatSafety" class="fingerprint" style="margin-left:auto; display:none;"
-                onclick="app.showSafetyInfo()">
-                <span id="fingerprintValue"></span>
-            </div>
-            <div id="membersToggle" class="btn-settings" style="display:none; font-size:18px;"
-                onclick="app.toggleMembersList()" title="Участники">👥</div>
-        </div>
 
-        <div class="chat-main">
-            <div id="messages">
-                <div class="sys-msg" style="margin-top:auto;">Начните общение, выбрав контакт или добавив по ID
+            <div class="chat-main">
+                <div id="messages">
+                    <div class="sys-msg" style="margin-top:auto;">Начните общение, выбрав контакт или добавив по ID
+                    </div>
+                </div>
+
+                <div class="members-sidebar" id="membersSidebar" style="display:none;">
+                    <h4>Участники</h4>
+                    <div id="membersList"></div>
                 </div>
             </div>
 
-            <div class="members-sidebar" id="membersSidebar" style="display:none;">
-                <h4>Участники</h4>
-                <div id="membersList"></div>
+            <div class="input-bar">
+                <input type="text" id="msgInput" placeholder="Ваше сообщение..."
+                    onkeypress="if(event.key==='Enter') app.sendMessage()" disabled>
+                <button id="sendBtn" class="btn-send" onclick="app.sendMessage()" disabled>➤</button>
             </div>
         </div>
 
-        <div class="input-bar">
-            <input type="text" id="msgInput" placeholder="Ваше сообщение..."
-                onkeypress="if(event.key==='Enter') app.sendMessage()" disabled>
-            <button id="sendBtn" class="btn-send" onclick="app.sendMessage()" disabled>➤</button>
-        </div>
-    </div>
+        <!-- Empty State -->
+        <div id="emptyChat" class="chat-area empty-state">
+            <div class="chat-header">
+                <h3>Выберите чат</h3>
+            </div>
+            <div
+                style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; padding-bottom:60px;">
+                <div style="font-size: 48px; animation: float 3s ease-in-out infinite;">💬</div>
+                <h2 style="font-size:20px; font-weight:600; color:#e6edf3;">Начните общение</h2>
+                <p style="font-size:13px; color:#8b949e; text-align:center; max-width:280px; line-height:1.5;">Выберите
+                    контакт слева или пригласите друга по ссылке</p>
+            </div>
 
-    <!-- Empty State -->
-    <div id="emptyChat" class="chat-area empty-state">
-        <div class="chat-header">
-            <h3>Выберите чат</h3>
+            <!-- Fake Input Bar for Empty State visual match -->
+            <div class="input-bar" style="opacity:0.5; pointer-events:none;">
+                <input type="text" placeholder="Ваше сообщение..." disabled>
+                <button class="btn-send" disabled>➤</button>
+            </div>
         </div>
-        <div
-            style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px; padding-bottom:60px;">
-            <div style="font-size: 48px; animation: float 3s ease-in-out infinite;">💬</div>
-            <h2 style="font-size:20px; font-weight:600; color:#e6edf3;">Начните общение</h2>
-            <p style="font-size:13px; color:#8b949e; text-align:center; max-width:280px; line-height:1.5;">Выберите
-                контакт слева или пригласите друга по ссылке</p>
-        </div>
-
-        <!-- Fake Input Bar for Empty State visual match -->
-        <div class="input-bar" style="opacity:0.5; pointer-events:none;">
-            <input type="text" placeholder="Ваше сообщение..." disabled>
-            <button class="btn-send" disabled>➤</button>
-        </div>
-    </div>
     </div>
 
     <!-- Создание группы -->
@@ -459,12 +458,12 @@
     </div>
 
     <!-- Core & Modules -->
-    <script src="js/app.js?v=2.7"></script>
-    <script src="js/utils.js?v=2.7"></script>
-    <script src="js/crypto.js?v=2.7"></script>
-    <script src="js/auth.js?v=2.7"></script>
-    <script src="js/sync.js?v=2.7"></script>
-    <script src="js/ui.js?v=2.7"></script>
+    <script src="js/app.js?v=2.8"></script>
+    <script src="js/utils.js?v=2.8"></script>
+    <script src="js/crypto.js?v=2.8"></script>
+    <script src="js/auth.js?v=2.8"></script>
+    <script src="js/sync.js?v=2.8"></script>
+    <script src="js/ui.js?v=2.8"></script>
 
     <!-- Init -->
     <script>
