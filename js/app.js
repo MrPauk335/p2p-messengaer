@@ -184,21 +184,21 @@ class App {
                 // Update Contact Info
                 if (data.info) {
                     if (!this.contacts[conn.peer]) {
-                        // Create partial contact if not exists (e.g. they added me, I didn't add them yet)
-                        // But usually we only add specific contacts.
-                        // If we are connected, it means we accepted connection?
-                        // PeerJS accepts all connections by default.
-                        // So we might receive profile from stranger.
-                        // We should probably NOT add them automatically unless we want to?
-                        // But for "Loading..." case, we HAVE them in contacts (via Hash add).
-                    }
-                    if (this.contacts[conn.peer]) {
+                        this.contacts[conn.peer] = {
+                            id: conn.peer,
+                            name: data.info.name || conn.peer,
+                            color: data.info.color || this.getRandomColor(),
+                            added: Date.now(),
+                            last: ''
+                        };
+                        this.showToast(`Новый контакт: ${data.info.name || conn.peer}`);
+                    } else {
                         this.contacts[conn.peer].name = data.info.name || this.contacts[conn.peer].name;
                         this.contacts[conn.peer].color = data.info.color || this.contacts[conn.peer].color;
-                        this.saveContacts();
-                        this.refreshContacts();
-                        if (this.activeChatId === conn.peer) this.updateChatHeader();
                     }
+                    this.saveContacts();
+                    this.refreshContacts();
+                    if (this.activeChatId === conn.peer) this.updateChatHeader();
                 }
             } else if (data.type === 'handshake') {
                 await this.handleHandshake(conn.peer, data.publicKey);
@@ -207,6 +207,19 @@ class App {
                 let text = data.text;
                 if (data.encrypted) {
                     text = await this.decryptSessionMsg(conn.peer, data.payload, data.iv);
+                }
+
+                // Double check they are in contacts so they show in sidebar
+                if (!this.contacts[conn.peer] && !this.groups[conn.peer]) {
+                    this.contacts[conn.peer] = {
+                        id: conn.peer,
+                        name: conn.peer,
+                        color: this.getRandomColor(),
+                        added: Date.now(),
+                        last: ''
+                    };
+                    this.saveContacts(true);
+                    this.refreshContacts();
                 }
 
                 this.saveMsg(conn.peer, text, 'them', data.senderId);
