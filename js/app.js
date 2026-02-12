@@ -60,7 +60,13 @@ class App {
             this.myPass = savedPass;
             this.mySecret = savedSecret || '';
 
-            this.start();
+            if (localStorage.getItem('p2p_is_locked') === 'true') {
+                document.getElementById('lock-overlay').style.display = 'flex';
+                this.updateMyProfileUI();
+            } else {
+                this.start();
+                this.checkIP();
+            }
         } else {
             // New user setup
             document.getElementById('setup-overlay').style.display = 'flex';

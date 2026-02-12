@@ -139,6 +139,11 @@ Object.assign(App.prototype, {
         const pass = document.getElementById('lockPass').value;
         if (pass === this.myPass) {
             document.getElementById('lock-overlay').style.display = 'none';
+            localStorage.removeItem('p2p_is_locked');
+            if (!this.peer) {
+                this.start();
+                this.checkIP();
+            }
         } else {
             document.getElementById('lockError').innerText = "Неверный пароль";
         }
@@ -175,8 +180,33 @@ Object.assign(App.prototype, {
     },
 
     logout(force = false) {
-        if (force || confirm("Выйти из профиля? Данные останутся на этом устройстве.")) {
+        if (force || confirm("Выйти из профиля? (Приложение будет заблокировано)")) {
+            localStorage.setItem('p2p_is_locked', 'true');
             location.reload();
+        }
+    },
+
+    async checkIP() {
+        if (!this.ipCheckEnabled) return;
+
+        try {
+            const res = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            const currentIp = data.ip;
+            const lastIp = localStorage.getItem('p2p_last_ip');
+
+            if (lastIp && lastIp !== currentIp) {
+                // IP Changed!
+                this.showToast(`⚠️ IP изменился: ${lastIp} -> ${currentIp}`);
+                // Lock the app for security
+                localStorage.setItem('p2p_is_locked', 'true');
+                localStorage.setItem('p2p_last_ip', currentIp); // Update known IP
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                localStorage.setItem('p2p_last_ip', currentIp);
+            }
+        } catch (e) {
+            console.warn("IP Check failed:", e);
         }
     },
 
