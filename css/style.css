@@ -743,6 +743,11 @@ body {
     animation: overlay-in 0.3s var(--ease);
 }
 
+.lock-screen {
+    flex-direction: column;
+    gap: 15px;
+}
+
 @keyframes overlay-in {
     from {
         opacity: 0;
