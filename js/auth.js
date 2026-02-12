@@ -282,11 +282,14 @@ Object.assign(App.prototype, {
     },
 
     // Stubs for Telegram/Other unimplemented features to prevent crash
-    startTgPairing() { this.showToast("Функция временно недоступна (нет сервера)"); },
-    verifyTg2fa() { this.showToast("Функция временно недоступна"); },
+    // Stubs for Telegram/Other unimplemented features
+    startTgPairing() {
+        alert("ОШИБКА: Для работы Telegram-бота и 2FA требуется выделенный бэкенд-сервер.\n\nВ текущей P2P версии (без сервера) эта функция недоступна для защиты вашей приватности.");
+    },
+    verifyTg2fa() { },
     show2faStep() { },
     verifySecret() { },
-    unlinkTg() { this.showToast("Нечего отключать"); },
+    unlinkTg() { },
     requestTg2fa() { },
 
     promptInstall() {

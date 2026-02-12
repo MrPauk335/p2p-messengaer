@@ -115,10 +115,26 @@ class App {
             config: {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' },
+                    { urls: 'stun:stun.l.google.com:19305' },
+                    { urls: 'stun:stun.voipstunt.com' },
+                    { urls: 'stun:stun.ekiga.net' }
+                ],
+                iceCandidatePoolSize: 10
             },
             debug: 1
+        });
+
+        this.peer.on('error', (err) => {
+            console.error('PeerJS Error:', err);
+            if (err.type === 'network') {
+                this.showToast("⚠️ Ошибка сети. Проверьте соединение.");
+            } else if (err.type === 'peer-unavailable') {
+                // Don't toast for bg reconnects, only for active attempts?
+            }
         });
 
         this.peer.on('open', (id) => {
