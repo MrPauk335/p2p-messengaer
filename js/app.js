@@ -141,7 +141,7 @@ class App {
                 if (status) status.innerText = "Конфликт: ID уже в сети";
                 if (myIdDisplay) myIdDisplay.innerText = "Ошибка: ID занят";
             } else if (err.type === 'peer-unavailable') {
-                if (status && this.activeChatId) status.innerText = "Собеседник оффлайн";
+                if (status && this.activeChatId) status.innerText = "Собеседник оффлайн (Проверьте ID)";
             } else if (err.type === 'network') {
                 if (status) status.innerHTML = "Ошибка сети <span style='cursor:pointer; text-decoration:underline;' onclick='app.reconnect()'>🔄 Повтор</span>";
                 if (myIdDisplay) myIdDisplay.innerHTML = `${this.myId} <br> <span style="color:var(--danger)">Ошибка сети 📶</span>`;

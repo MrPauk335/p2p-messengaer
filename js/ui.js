@@ -289,6 +289,11 @@ Object.assign(App.prototype, {
 
         if (id === this.myId) return this.showToast("Это ваш ID");
 
+        // Proactive Hint: If ID is short, warn user
+        if (!id.includes('_dev_')) {
+            this.showToast("⚠️ Похоже, ID неполный. Друг должен скопировать ВЕСЬ ID из сайдбара!");
+        }
+
         if (this.contacts[id]) {
             this.selectChat(id);
             input.value = '';
