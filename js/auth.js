@@ -134,6 +134,33 @@ Object.assign(App.prototype, {
             lockAvatar.style.background = this.myColor;
             document.getElementById('lockNick').innerText = "С возвращением, " + this.myNick;
         }
+
+        // --- Update Telegram UI ---
+        const tgToken = localStorage.getItem('p2p_tg_token');
+        const tgChatId = localStorage.getItem('p2p_tg_chatid');
+        const botInput = document.getElementById('tgBotToken');
+        const chatInput = document.getElementById('tgChatId');
+
+        if (botInput && tgToken) botInput.value = tgToken;
+        if (chatInput && tgChatId) chatInput.value = tgChatId;
+
+        const tgLabel = document.getElementById('tgStatusLabel');
+        if (tgLabel) {
+            if (tgToken && tgChatId) {
+                tgLabel.innerText = "Бот настроен ✅";
+                tgLabel.style.color = "var(--success)";
+            } else {
+                tgLabel.innerText = "Бот не настроен";
+                tgLabel.style.color = "var(--text-dim)";
+            }
+        }
+
+        const tgEnabledSwitch = document.getElementById('settingTgEnabled');
+        if (tgEnabledSwitch) {
+            tgEnabledSwitch.checked = this.notificationsEnabled;
+            const settingsDiv = document.getElementById('tgSettings');
+            if (settingsDiv) settingsDiv.style.display = this.notificationsEnabled ? 'block' : 'none';
+        }
     },
 
     // Auth Helpers
@@ -281,34 +308,188 @@ Object.assign(App.prototype, {
         this.showToast(checked ? "🛡️ Проверка IP включена" : "⚠️ Проверка IP отключена");
     },
 
-    // Stubs for Telegram/Other unimplemented features to prevent crash
-    // Stubs for Telegram/Other unimplemented features
-    startTgPairing() {
-        alert("ОШИБКА: Для работы Telegram-бота и 2FA требуется выделенный бэкенд-сервер.\n\nВ текущей P2P версии (без сервера) эта функция недоступна для защиты вашей приватности.");
+    // --- Telegram Bot Integration (Direct API) ---
+    saveTgSettings() {
+        const token = document.getElementById('tgBotToken').value.trim();
+        const chatId = document.getElementById('tgChatId').value.trim();
+        if (token) localStorage.setItem('p2p_tg_token', token);
+        if (chatId) localStorage.setItem('p2p_tg_chatid', chatId);
+        this.showToast("Настройки Telegram сохранены");
+        if (this.tgEnabled) this.initTgBot();
     },
-    verifyTg2fa() { },
-    show2faStep() { },
-    verifySecret() { },
-    unlinkTg() { },
-    requestTg2fa() { },
+
+    async testTgConnection() {
+        const token = document.getElementById('tgBotToken').value.trim() || localStorage.getItem('p2p_tg_token');
+        const chatId = document.getElementById('tgChatId').value.trim() || localStorage.getItem('p2p_tg_chatid');
+
+        if (!token || !chatId) return this.showToast("Сначала укажите Token и Chat ID ⚠️");
+
+        const label = document.getElementById('tgStatusLabel');
+        label.innerText = "Проверка...";
+        label.style.color = "var(--text-dim)";
+
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: `✅ Связь с P2P Messenger установлена!\n👤 Ник: ${this.myNick}\n🌐 IP: Checking...`
+                })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                this.showToast("Бот подключен! Проверьте Telegram 📨");
+                label.innerText = "Подключено ✅";
+                label.style.color = "var(--success)";
+            } else {
+                throw new Error(data.description);
+            }
+        } catch (e) {
+            console.error(e);
+            this.showToast("Ошибка подключения ❌");
+            label.innerText = "Ошибка: " + e.message;
+            label.style.color = "var(--danger)";
+        }
+    },
+
+    async sendTgMessage(text) {
+        const token = localStorage.getItem('p2p_tg_token') || "8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4";
+        const chatId = localStorage.getItem('p2p_tg_chatid');
+        if (!this.tgEnabled || !token || !chatId) return;
+
+        try {
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
+            });
+        } catch (e) {
+            console.warn("Failed to send TG message:", e);
+        }
+    },
+
+    async pollTgUpdates() {
+        if (!this.tgEnabled) return;
+        const token = localStorage.getItem('p2p_tg_token') || "8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4";
+        const chatId = localStorage.getItem('p2p_tg_chatid');
+        if (!token || !chatId) return;
+
+        const lastOffset = localStorage.getItem('p2p_tg_offset') || 0;
+
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${token}/getUpdates?offset=${lastOffset}&timeout=30`);
+            const data = await res.json();
+            if (data.ok && data.result.length > 0) {
+                for (const update of data.result) {
+                    const msg = update.message;
+                    if (msg && msg.chat.id.toString() === chatId.toString() && msg.text) {
+                        this.handleTgCommand(msg.text);
+                    }
+                    localStorage.setItem('p2p_tg_offset', update.update_id + 1);
+                }
+            }
+        } catch (e) {
+            console.warn("TG Polling error:", e);
+        }
+
+        // Loop polling
+        setTimeout(() => this.pollTgUpdates(), 3000);
+    },
+
+    handleTgCommand(cmd) {
+        const command = cmd.toLowerCase().trim();
+        if (command === '/status') {
+            const status = `📊 <b>Статус сессии:</b>\n👤 Ник: ${this.myNick}\n🌐 Сеть: ${this.peer && !this.peer.disconnected ? 'Active' : 'Offline'}\n🆔 ID: <code>${this.myId}</code>`;
+            this.sendTgMessage(status);
+        } else if (command === '/logout' || command === '/kick') {
+            this.sendTgMessage(`🚫 Сессия для <b>${this.myNick}</b> завершена удаленно.`);
+            this.logout(true);
+        } else if (command === '/login' || command === '/2fa') {
+            const code = Math.floor(100000 + Math.random() * 900000);
+            this.sendTgMessage(`🔐 Код подтверждения: <b>${code}</b>\n🛡️ Ваш Секрет: <code>${this.mySecret}</code>`);
+        } else if (command === '/help' || command === '❓ помощь') {
+            this.sendTgMessage(`🤖 <b>Доступные команды:</b>\n/status - проверить состояние\n/logout - завершить сессию\n/login - получить код и секрет\n/kick - то же самое что logout`);
+        }
+    },
+
+    initTgBot() {
+        const token = localStorage.getItem('p2p_tg_token') || "8508148034:AAFJRU766RAY1Rt6-XfYB6_PbEpZ7WwgND4";
+        const chatId = localStorage.getItem('p2p_tg_chatid');
+        const enabled = localStorage.getItem('p2p_notifications') === 'true';
+
+        this.tgEnabled = enabled;
+        if (enabled && token && chatId) {
+            this.pollTgUpdates();
+            this.sendTgMessage(`🚀 <b>Бот запущен</b>\nПриложение открыто на устройстве.`);
+        }
+    },
+
+    // Legacy/Sync methods updated for Direct API
+    startTgPairing() {
+        alert("Используйте ручную настройку: вставьте Token от @BotFather и ваш Chat ID в настройках.");
+    },
+    unlinkTg() {
+        localStorage.removeItem('p2p_tg_token');
+        localStorage.removeItem('p2p_tg_chatid');
+        localStorage.setItem('p2p_notifications', 'false');
+        location.reload();
+    },
 
     promptInstall() {
         // Simple prompt logic usually involves capturing the install event
         this.showToast("Функция установки недоступна");
     },
     exportData() {
-        // Simple export
+        // Full export for domain migration
         const data = {
             nick: this.myNick,
+            uid: this.myId,
+            color: this.myColor,
+            pass: this.myPass,
+            secret: this.mySecret,
             contacts: this.contacts,
             groups: this.groups,
-            history: this.history
+            history: this.history,
+            myDevices: this.myDevices,
+            deviceSuffix: this.deviceSuffix,
+            connSettings: this.connSettings,
+            privKey: localStorage.getItem('p2p_priv_key'),
+            pubKey: localStorage.getItem('p2p_pub_key'),
+            incognito: localStorage.getItem('p2p_incognito'),
+            burnTimer: localStorage.getItem('p2p_burn_timer'),
+            notifications: localStorage.getItem('p2p_notifications'),
+            ipCheck: localStorage.getItem('p2p_ip_check'),
+            deviceSuffix: localStorage.getItem('p2p_device_suffix')
         };
-        const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = "messenger_backup.json";
+        a.download = `messenger_backup_${this.myNick}_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
+        this.showToast("Бэкап создан! 💾");
+    },
+
+    handleImportFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!data.uid || !data.nick) {
+                    throw new Error("Неверный формат файла");
+                }
+                if (confirm(`Импортировать профиль "${data.nick}"? Текущие данные на этом устройстве будут заменены.`)) {
+                    this.applyImportedProfile(data);
+                }
+            } catch (err) {
+                console.error(err);
+                this.showToast("Ошибка при чтении файла ❌");
+            }
+        };
+        reader.readAsText(file);
     }
 });

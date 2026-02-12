@@ -86,6 +86,9 @@ class App {
             document.getElementById('setup-overlay').style.display = 'flex';
         }
 
+        // Initialize Telegram Bot if enabled
+        this.initTgBot();
+
         // Global Event Listeners (UI)
         document.getElementById('msgInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendMessage();

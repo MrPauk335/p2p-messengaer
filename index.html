@@ -90,7 +90,8 @@
                 <button id="setupBtn" class="btn-main" style="flex:2" onclick="app.finishSetup()">Начать работу</button>
                 <button class="btn-main" style="flex:1; background:#252525;"
                     onclick="app.showSyncOverlay('target')">Синхрон.</button>
-                <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
+                <button class="btn-main" style="flex:1; background:#252525;"
+                    onclick="document.getElementById('importFile').click()">Импорт</button>
             </div>
             <div id="setupError" style="color:var(--danger); font-size:12px; margin-top:10px; text-align:center;"></div>
 
@@ -220,33 +221,35 @@
                     onclick="navigator.clipboard.writeText(app.mySecret); app.showToast('Ключ скопирован! 🆔')">Копировать
                     Ключ</button>
 
-                <h3 style="font-size:14px; margin:20px 0 10px;">🤖 Telegram 2FA (@p2p2fabot)</h3>
+                <h3 style="font-size:14px; margin:20px 0 10px;">🤖 Telegram 2FA (Direct API)</h3>
+                <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">
+                    Используйте своего бота (по умолчанию @p2p2fabot) для контроля аккаунта без сервера.
+                </p>
                 <label class="switch-item"
                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; cursor:pointer;">
-                    <span style="font-size:13px;">Включить уведомления</span>
+                    <span style="font-size:13px;">Включить оповещения</span>
                     <input type="checkbox" id="settingTgEnabled" onchange="app.toggleTg(this.checked)">
                 </label>
 
                 <div id="tgSettings"
-                    style="display:none; background:var(--glass); padding:10px; border-radius:10px; margin-top:10px;">
-                    <div id="tgPairingContainer">
-                        <p id="tgPairingCodeDisplay"
-                            style="font-size:18px; font-weight:bold; color:var(--accent); letter-spacing:3px; margin:10px 0; display:none;">
-                            - - - - - -</p>
-                        <p id="tgPairingStatus" style="font-size:12px; color:var(--text-dim); margin-bottom:10px;">
-                            Привяжите аккаунт, чтобы получать 2FA и команды (<b>/logout</b>).</p>
-                        <button id="tgPairBtn" class="btn-main" style="height:35px; font-size:13px; background:#0088cc;"
-                            onclick="app.startTgPairing()">Привязать через Код</button>
-                    </div>
-                    <div id="tgLinkedContainer" style="display:none;">
-                        <p style="font-size:12px; color:var(--text-dim);">Статус: <span
-                                style="color:#4dff4d;">Подключено</span></p>
-                        <p style="font-size:11px; color:var(--text-dim); margin-bottom:10px;">Chat ID: <span
-                                id="tgChatIdLabel">?</span></p>
-                        <button class="btn-main" style="height:35px; font-size:13px; background:var(--danger);"
-                            onclick="app.unlinkTg()">Отключить</button>
+                    style="display:none; background:var(--glass); padding:12px; border-radius:12px; margin-top:10px;">
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <input type="password" id="tgBotToken" placeholder="Bot Token (e.g. 8508148034:...)"
+                            class="big-input" style="font-size:11px; margin-bottom:0;" onchange="app.saveTgSettings()">
+                        <input type="text" id="tgChatId" placeholder="Your Chat ID (e.g. 12345678)" class="big-input"
+                            style="font-size:11px; margin-bottom:0;" onchange="app.saveTgSettings()">
+                        <div style="display:flex; gap:8px; margin-top:5px;">
+                            <button class="btn-main" style="height:32px; font-size:11px; background:var(--accent);"
+                                onclick="app.testTgConnection()">Проверить связь</button>
+                            <button class="btn-main" style="height:32px; font-size:11px; background:#252525;"
+                                onclick="window.open('https://t.me/userinfobot', '_blank')">Узнать мой ID</button>
+                        </div>
+                        <p id="tgStatusLabel"
+                            style="font-size:10px; color:var(--text-dim); margin-top:5px; text-align:center;">Бот не
+                            настроен</p>
                     </div>
                 </div>
+
 
                 <h3 style="font-size:14px; margin:20px 0 10px;">⚡ Fort Knox Mode</h3>
                 <label class="switch-item"
@@ -317,7 +320,8 @@
             <div style="display:flex; gap:10px; margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
                 <button class="btn-main" style="flex:1" onclick="app.updateProfile()">Сохранить</button>
                 <button class="btn-main" style="flex:1; background:#252525;" onclick="app.exportData()">Экспорт</button>
-                <button class="btn-main" style="flex:1; background:#252525;" onclick="app.importData()">Импорт</button>
+                <button class="btn-main" style="flex:1; background:#252525;"
+                    onclick="document.getElementById('importFile').click()">Импорт</button>
             </div>
             <button class="btn-main" style="background:var(--bg-elevated); margin-top:10px; font-size:13px;"
                 onclick="app.logout()">Выйти из аккаунта</button>
@@ -502,6 +506,9 @@
     <script src="js/auth.js?v=4.0"></script>
     <script src="js/sync.js?v=4.0"></script>
     <script src="js/ui.js?v=4.0"></script>
+
+    <!-- Hidden File Input for Migration -->
+    <input type="file" id="importFile" style="display:none" onchange="app.handleImportFile(event)" accept=".json">
 
     <!-- Init -->
     <script>
